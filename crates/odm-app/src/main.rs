@@ -43,6 +43,10 @@ fn main() -> eframe::Result<()> {
                 }
             }
         }
+        // The existing instance may be hidden in the tray and not processing
+        // UI updates; restore its window directly.
+        #[cfg(windows)]
+        restore_existing_window();
         return Ok(());
     }
     // Keep the single-instance handle alive for the process lifetime.
@@ -77,6 +81,28 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| Ok(Box::new(IdmApp::new(cc, engine, rx)))),
     )
+}
+
+/// Find the running main window by title and bring it back from the tray.
+#[cfg(windows)]
+fn restore_existing_window() {
+    #[link(name = "user32")]
+    extern "system" {
+        fn FindWindowW(class: *const u16, title: *const u16) -> isize;
+        fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+        fn SetForegroundWindow(hwnd: isize) -> i32;
+    }
+    const SW_SHOW: i32 = 5;
+    const SW_RESTORE: i32 = 9;
+    let title: Vec<u16> = "Open Download Manager\0".encode_utf16().collect();
+    unsafe {
+        let hwnd = FindWindowW(std::ptr::null(), title.as_ptr());
+        if hwnd != 0 {
+            ShowWindow(hwnd, SW_RESTORE);
+            ShowWindow(hwnd, SW_SHOW);
+            SetForegroundWindow(hwnd);
+        }
+    }
 }
 
 /// Blue tile + green arrow, same artwork as the tray icon.

@@ -1,12 +1,70 @@
-//! System tray icon and menu (IDM's "tray icon" feature).
+//! System tray icon and menu (tray-only minimize support).
 
-use tray_icon::menu::{Menu, MenuItem, PredefinedMenuItem};
+use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+use tray_icon::menu::{Menu, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 pub struct Tray {
     pub icon: TrayIcon,
     pub show: MenuItem,
     pub exit: MenuItem,
+}
+
+#[cfg(windows)]
+mod win {
+    #[link(name = "user32")]
+    extern "system" {
+        pub fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+        pub fn SetForegroundWindow(hwnd: isize) -> i32;
+    }
+    pub const SW_SHOW: i32 = 5;
+    pub const SW_RESTORE: i32 = 9;
+}
+
+#[cfg(windows)]
+fn show_window(hwnd: isize) {
+    if hwnd == 0 {
+        return;
+    }
+    unsafe {
+        win::ShowWindow(hwnd, win::SW_RESTORE);
+        win::ShowWindow(hwnd, win::SW_SHOW);
+        win::SetForegroundWindow(hwnd);
+    }
+}
+
+/// Independent watcher: keeps working even while the egui/winit window is
+/// hidden and therefore no longer receives update() calls.
+pub fn spawn_restore_watcher(hwnd: Arc<AtomicIsize>, show_id: MenuId, exit_id: MenuId) {
+    std::thread::Builder::new()
+        .name("odm-tray-watch".into())
+        .spawn(move || loop {
+            while let Ok(ev) = tray_icon::menu::MenuEvent::receiver().try_recv() {
+                if ev.id == show_id {
+                    show_window(hwnd.load(Ordering::Relaxed));
+                } else if ev.id == exit_id {
+                    std::process::exit(0);
+                }
+            }
+            while let Ok(ev) = tray_icon::TrayIconEvent::receiver().try_recv() {
+                match ev {
+                    tray_icon::TrayIconEvent::Click {
+                        button: tray_icon::MouseButton::Left,
+                        button_state: tray_icon::MouseButtonState::Up,
+                        ..
+                    }
+                    | tray_icon::TrayIconEvent::DoubleClick {
+                        button: tray_icon::MouseButton::Left,
+                        ..
+                    } => show_window(hwnd.load(Ordering::Relaxed)),
+                    _ => {}
+                }
+            }
+            std::thread::sleep(Duration::from_millis(80));
+        })
+        .ok();
 }
 
 pub fn create() -> Option<Tray> {

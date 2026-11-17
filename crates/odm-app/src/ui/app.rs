@@ -103,6 +103,8 @@ pub struct IdmApp {
     pub clip: Option<arboard::Clipboard>,
     pub last_clip_check: Instant,
     pub hwnd: Option<isize>,
+    pub hwnd_shared: std::sync::Arc<std::sync::atomic::AtomicIsize>,
+    pub watcher_started: bool,
 }
 
 impl IdmApp {
@@ -144,6 +146,8 @@ impl IdmApp {
             clip: arboard::Clipboard::new().ok(),
             last_clip_check: Instant::now(),
             hwnd: None,
+            hwnd_shared: std::sync::Arc::new(std::sync::atomic::AtomicIsize::new(0)),
+            watcher_started: false,
         }
     }
 
@@ -1285,18 +1289,6 @@ impl IdmApp {
             .any(|f| f.eq_ignore_ascii_case(&ext))
     }
 
-    fn handle_tray(&mut self, ctx: &egui::Context) {
-        while let Ok(ev) = tray_icon::menu::MenuEvent::receiver().try_recv() {
-            let show_id = self.tray.as_ref().map(|t| t.show.id().clone());
-            let exit_id = self.tray.as_ref().map(|t| t.exit.id().clone());
-            if Some(ev.id.clone()) == show_id {
-                self.restore(ctx);
-            } else if Some(ev.id.clone()) == exit_id {
-                ctx.send_viewport_cmd(ViewportCommand::Close);
-            }
-        }
-    }
-
     fn restore(&mut self, ctx: &egui::Context) {
         self.hidden = false;
         #[cfg(windows)]
@@ -1311,23 +1303,6 @@ impl IdmApp {
         ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(ViewportCommand::Focus);
         ctx.request_repaint();
-    }
-
-    fn handle_tray_click(&mut self, ctx: &egui::Context) {
-        while let Ok(ev) = tray_icon::TrayIconEvent::receiver().try_recv() {
-            match ev {
-                tray_icon::TrayIconEvent::Click {
-                    button: tray_icon::MouseButton::Left,
-                    button_state: tray_icon::MouseButtonState::Up,
-                    ..
-                }
-                | tray_icon::TrayIconEvent::DoubleClick {
-                    button: tray_icon::MouseButton::Left,
-                    ..
-                } => self.restore(ctx),
-                _ => {}
-            }
-        }
     }
 }
 
@@ -1426,7 +1401,9 @@ mod win {
     extern "system" {
         pub fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
         pub fn SetForegroundWindow(hwnd: isize) -> i32;
+        pub fn IsWindowVisible(hwnd: isize) -> i32;
     }
+    pub const SW_HIDE: i32 = 0;
     pub const SW_SHOW: i32 = 5;
     pub const SW_RESTORE: i32 = 9;
 }
@@ -1444,9 +1421,32 @@ impl eframe::App for IdmApp {
         if self.hwnd.is_none() {
             self.hwnd = native_hwnd(frame);
         }
+        #[cfg(windows)]
+        if let Some(h) = self.hwnd {
+            self.hwnd_shared
+                .store(h, std::sync::atomic::Ordering::Relaxed);
+            if !self.watcher_started {
+                if let Some(tray) = &self.tray {
+                    crate::ui::tray::spawn_restore_watcher(
+                        self.hwnd_shared.clone(),
+                        tray.show.id().clone(),
+                        tray.exit.id().clone(),
+                    );
+                    self.watcher_started = true;
+                }
+            }
+        }
         self.poll(ctx);
-        self.handle_tray(ctx);
-        self.handle_tray_click(ctx);
+        #[cfg(windows)]
+        if self.hidden {
+            if let Some(h) = self.hwnd {
+                if unsafe { win::IsWindowVisible(h) } != 0 {
+                    // Restored by the tray watcher or another instance.
+                    self.hidden = false;
+                    ctx.request_repaint();
+                }
+            }
+        }
         self.handle_shortcuts(ctx);
         self.clipboard_tick(ctx);
 
@@ -1456,9 +1456,16 @@ impl eframe::App for IdmApp {
             && !self.hidden
         {
             ctx.send_viewport_cmd(ViewportCommand::CancelClose);
-            // Minimize instead of hiding: a hidden winit window stops
-            // dispatching updates, which also broke tray/relaunch restore.
-            ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
+            #[cfg(windows)]
+            if let Some(h) = self.hwnd {
+                unsafe {
+                    win::ShowWindow(h, win::SW_HIDE);
+                }
+            } else {
+                ctx.send_viewport_cmd(ViewportCommand::Visible(false));
+            }
+            #[cfg(not(windows))]
+            ctx.send_viewport_cmd(ViewportCommand::Visible(false));
             self.hidden = true;
         }
 
