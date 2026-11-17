@@ -1,6 +1,6 @@
 # MSI installer
 
-`dist\OpenDownloadManager-1.0.3.msi` installs Open Download Manager for the
+`dist\OpenDownloadManager-1.0.4.msi` installs Open Download Manager for the
 current user without elevation.
 
 ## What it installs
@@ -25,14 +25,14 @@ clean entry with a working `MsiExec.exe /x {ProductCode}` uninstall command.
 ## Install / uninstall
 
 ```powershell
-msiexec /i .\dist\OpenDownloadManager-1.0.3.msi
-msiexec /x .\dist\OpenDownloadManager-1.0.3.msi
+msiexec /i .\dist\OpenDownloadManager-1.0.4.msi
+msiexec /x .\dist\OpenDownloadManager-1.0.4.msi
 ```
 
 Silent:
 
 ```powershell
-msiexec /i .\dist\OpenDownloadManager-1.0.3.msi /qn /norestart /l*v install.log
+msiexec /i .\dist\OpenDownloadManager-1.0.4.msi /qn /norestart /l*v install.log
 ```
 
 Uninstall removes the program files, shortcut, ARP entry, native-messaging
@@ -46,7 +46,7 @@ The build uses WiX 3.14 (already extracted in `tools\wix`):
 
 ```powershell
 .\build.ps1                              # app + extension into dist
-.\installer\build-msi.ps1 -Version 1.0.3 # produces dist\OpenDownloadManager-1.0.3.msi
+.\installer\build-msi.ps1 -Version 1.0.4 # produces dist\OpenDownloadManager-1.0.4.msi
 ```
 
 `installer\Product.wxs` contains the product definition, `license.rtf` the

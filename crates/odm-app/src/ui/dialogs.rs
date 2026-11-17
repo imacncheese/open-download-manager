@@ -353,6 +353,7 @@ impl IdmApp {
             };
             let mut open = true;
             let mut action: Option<ProgAction> = None;
+            let mut close_clicked = false;
             egui::Window::new(format!("Download progress - {}", d.file_name))
                 .id(egui::Id::new(("progress", id)))
                 .collapsible(false)
@@ -475,7 +476,7 @@ impl IdmApp {
                             }
                         }
                         if ui.button("Close").clicked() {
-                            // handled via `open`
+                            close_clicked = true;
                         }
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             ui.label(format!("{}%", d.percent()));
@@ -485,7 +486,7 @@ impl IdmApp {
             if let Some(a) = action {
                 actions.push((id, a));
             }
-            if !open {
+            if close_clicked || !open {
                 close.push(id);
             }
         }
@@ -849,6 +850,7 @@ impl IdmApp {
         let Some(st) = self.dialogs.properties.take() else { return };
         let mut open = true;
         let mut remove = false;
+        let mut close_clicked = false;
         egui::Window::new("File Properties")
             .id(egui::Id::new("properties"))
             .collapsible(false)
@@ -912,11 +914,14 @@ impl IdmApp {
                         remove = true;
                     }
                     if ui.button("Close").clicked() {
-                        // window close
+                        close_clicked = true;
                     }
                 });
             });
         let _ = remove;
+        if close_clicked {
+            open = false;
+        }
         if open {
             self.dialogs.properties = Some(st);
         }
@@ -925,6 +930,7 @@ impl IdmApp {
     fn dialog_complete(&mut self, ctx: &egui::Context) {
         let Some(st) = self.dialogs.complete.take() else { return };
         let mut open = true;
+        let mut close_clicked = false;
         egui::Window::new("Download complete")
             .id(egui::Id::new("complete"))
             .collapsible(false)
@@ -950,10 +956,13 @@ impl IdmApp {
                         }
                     }
                     if ui.button("Close").clicked() {
-                        // close via open flag
+                        close_clicked = true;
                     }
                 });
             });
+        if close_clicked {
+            open = false;
+        }
         if open {
             self.dialogs.complete = Some(st);
         }
@@ -1033,6 +1042,7 @@ impl IdmApp {
             return;
         }
         let mut open = true;
+        let mut close_clicked = false;
         egui::Window::new("Columns")
             .id(egui::Id::new("columns"))
             .collapsible(false)
@@ -1053,9 +1063,12 @@ impl IdmApp {
                 ui.checkbox(&mut self.columns.referer, "Referer");
                 ui.separator();
                 if ui.button("OK").clicked() {
-                    // close handled below
+                    close_clicked = true;
                 }
             });
+        if close_clicked {
+            open = false;
+        }
         self.dialogs.columns = open;
     }
 
@@ -1153,6 +1166,7 @@ impl IdmApp {
             return;
         }
         let mut open = true;
+        let mut close_clicked = false;
         egui::Window::new("About Open Download Manager")
             .id(egui::Id::new("about"))
             .collapsible(false)
@@ -1172,9 +1186,12 @@ impl IdmApp {
                 });
                 ui.separator();
                 if ui.button("OK").clicked() {
-                    // close
+                    close_clicked = true;
                 }
             });
+        if close_clicked {
+            open = false;
+        }
         self.dialogs.about = open;
     }
 
@@ -1183,6 +1200,7 @@ impl IdmApp {
             return;
         }
         let mut open = true;
+        let mut close_clicked = false;
         let tip = self
             .tips
             .get(self.tip_index % self.tips.len().max(1))
@@ -1204,10 +1222,13 @@ impl IdmApp {
                         self.tip_index = self.tip_index.wrapping_add(1);
                     }
                     if ui.button("Close").clicked() {
-                        // close
+                        close_clicked = true;
                     }
                 });
             });
+        if close_clicked {
+            open = false;
+        }
         self.dialogs.tip = open;
     }
 
@@ -1247,6 +1268,7 @@ impl IdmApp {
     fn dialog_info(&mut self, ctx: &egui::Context) {
         let Some((title, text)) = self.info.clone() else { return };
         let mut open = true;
+        let mut close_clicked = false;
         egui::Window::new(title)
             .id(egui::Id::new("info"))
             .collapsible(false)
@@ -1257,9 +1279,12 @@ impl IdmApp {
                 ui.label(text);
                 ui.separator();
                 if ui.button("OK").clicked() {
-                    // close
+                    close_clicked = true;
                 }
             });
+        if close_clicked {
+            open = false;
+        }
         if !open {
             self.info = None;
         }
