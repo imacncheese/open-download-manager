@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open Download Manager Integration",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Take over downloads with Open Download Manager.",
   "minimum_chrome_version": "102",
   "permissions": [

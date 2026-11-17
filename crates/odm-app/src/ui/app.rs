@@ -936,6 +936,7 @@ impl IdmApp {
                 let mut table = egui_extras::TableBuilder::new(ui)
                     .striped(true)
                     .resizable(true)
+                    .sense(egui::Sense::click())
                     .cell_layout(Layout::left_to_right(Align::Center))
                     .min_scrolled_height(0.0)
                     .auto_shrink([false, false]);
