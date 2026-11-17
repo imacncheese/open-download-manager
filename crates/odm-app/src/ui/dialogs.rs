@@ -32,6 +32,7 @@ pub struct Dialogs {
     pub category: Option<CategoryState>,
     pub delete_category: Option<String>,
     pub confirm_delete: Option<Vec<u64>>,
+    pub confirm_delete_files: bool,
     pub columns: bool,
     pub speed_limiter: bool,
     pub tip: bool,
@@ -1199,7 +1200,10 @@ impl IdmApp {
                 } else {
                     "Are you sure you want to delete the selected downloads from the download list?"
                 });
-                ui.checkbox(&mut self.cfg.delete_file_with_item, "Delete completely downloaded files from your hard disk as well. Be careful!");
+                ui.checkbox(
+                    &mut self.dialogs.confirm_delete_files,
+                    "Delete completely downloaded files from your hard disk as well. Be careful!",
+                );
                 ui.separator();
                 ui.horizontal(|ui| {
                     if ui
@@ -1220,7 +1224,9 @@ impl IdmApp {
             open = false;
         }
         if yes {
-            self.engine.remove(ids.clone(), self.cfg.delete_file_with_item);
+            self.cfg.delete_file_with_item = self.dialogs.confirm_delete_files;
+            self.engine
+                .remove(ids.clone(), self.dialogs.confirm_delete_files);
             self.engine.set_config(self.cfg.clone());
             self.selected.retain(|id| !ids.contains(id));
         } else if open {

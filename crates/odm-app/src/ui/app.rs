@@ -379,6 +379,7 @@ impl IdmApp {
             return;
         }
         if self.cfg.confirm_delete {
+            self.dialogs.confirm_delete_files = self.cfg.delete_file_with_item;
             self.dialogs.confirm_delete = Some(ids);
         } else {
             self.engine.remove(ids.clone(), self.cfg.delete_file_with_item);
@@ -1275,6 +1276,7 @@ impl IdmApp {
             RowAction::Pause(id) => self.engine.stop(id, true),
             RowAction::Remove(id) => {
                 if self.cfg.confirm_delete {
+                    self.dialogs.confirm_delete_files = self.cfg.delete_file_with_item;
                     self.dialogs.confirm_delete = Some(vec![id]);
                 } else {
                     self.engine.remove(vec![id], self.cfg.delete_file_with_item);

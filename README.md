@@ -55,13 +55,13 @@ cd open-download-manager
 
 ### MSI installer (no admin required)
 
-Download the latest `OpenDownloadManager-1.0.7.msi` from
+Download the latest `OpenDownloadManager-1.0.8.msi` from
 [Releases](https://github.com/imacncheese/open-download-manager/releases/latest),
 or build it locally:
 
 ```powershell
-.\installer\build-msi.ps1 -Version 1.0.7
-.\dist\OpenDownloadManager-1.0.7.msi
+.\installer\build-msi.ps1 -Version 1.0.8
+.\dist\OpenDownloadManager-1.0.8.msi
 ```
 
 The MSI installs the app, Start-menu shortcut, browser integration and a clean
