@@ -1187,6 +1187,7 @@ impl IdmApp {
         let Some(ids) = self.dialogs.confirm_delete.take() else { return };
         let mut open = true;
         let mut yes = false;
+        let mut cancel = false;
         egui::Window::new("Confirm deletion of downloads")
             .id(egui::Id::new("confirm_del"))
             .collapsible(false)
@@ -1201,17 +1202,29 @@ impl IdmApp {
                 ui.checkbox(&mut self.cfg.delete_file_with_item, "Delete completely downloaded files from your hard disk as well. Be careful!");
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button("Yes").clicked() {
+                    if ui
+                        .add(egui::Button::new("Yes").min_size(egui::vec2(86.0, 26.0)))
+                        .clicked()
+                    {
                         yes = true;
                     }
-                    if ui.button("No").clicked() {
-                        // cancel
+                    if ui
+                        .add(egui::Button::new("No").min_size(egui::vec2(86.0, 26.0)))
+                        .clicked()
+                    {
+                        cancel = true;
                     }
                 });
             });
+        if cancel {
+            open = false;
+        }
         if yes {
-            self.engine.remove(ids, self.cfg.delete_file_with_item);
+            self.engine.remove(ids.clone(), self.cfg.delete_file_with_item);
             self.engine.set_config(self.cfg.clone());
+            self.selected.retain(|id| !ids.contains(id));
+        } else if open {
+            self.dialogs.confirm_delete = Some(ids);
         }
     }
 

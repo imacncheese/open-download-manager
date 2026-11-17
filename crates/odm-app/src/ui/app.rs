@@ -381,7 +381,8 @@ impl IdmApp {
         if self.cfg.confirm_delete {
             self.dialogs.confirm_delete = Some(ids);
         } else {
-            self.engine.remove(ids, self.cfg.delete_file_with_item);
+            self.engine.remove(ids.clone(), self.cfg.delete_file_with_item);
+            self.selected.retain(|id| !ids.contains(id));
         }
     }
 
@@ -393,7 +394,8 @@ impl IdmApp {
             .map(|d| d.id)
             .collect();
         if !ids.is_empty() {
-            self.engine.remove(ids, false);
+            self.engine.remove(ids.clone(), false);
+            self.selected.retain(|id| !ids.contains(id));
         }
     }
 
@@ -479,6 +481,10 @@ impl IdmApp {
                             self.remove_selected();
                             ui.close_menu();
                         }
+                        if ui.button("Download again").clicked() {
+                            self.restart_selected();
+                            ui.close_menu();
+                        }
                         if ui.button("Download Now").clicked() {
                             self.start_selected();
                             ui.close_menu();
@@ -511,6 +517,14 @@ impl IdmApp {
                             ui.close_menu();
                         }
                         ui.separator();
+                        if ui.button("Delete selected...").clicked() {
+                            self.remove_selected();
+                            ui.close_menu();
+                        }
+                        if ui.button("Download again").clicked() {
+                            self.restart_selected();
+                            ui.close_menu();
+                        }
                         if ui.button("Delete All Completed").clicked() {
                             self.delete_completed();
                             ui.close_menu();
@@ -1048,88 +1062,132 @@ impl IdmApp {
                             row.set_selected(selected);
                             if self.columns.queue {
                                 row.col(|ui| {
-                                    ui.label(format!("Q{}", dl.queue_id));
+                                    cell_text(ui, &format!("Q{}", dl.queue_id), 11.5);
                                 });
                             }
                             if self.columns.name {
                                 row.col(|ui| {
-                                    let icon = icons::icon_for_file(&dl.file_name);
-                                    let (r, _) = ui.allocate_exact_size(Vec2::splat(16.0), Sense::hover());
-                                    icons::draw(ui.painter(), r, icon, Color32::from_gray(90));
-                                    ui.label(&dl.file_name).on_hover_text(format!("{}\n{}", dl.url, dl.dest_path().display()));
+                                    let rect = ui.max_rect();
+                                    let icon_rect = Rect::from_center_size(
+                                        Pos2::new(rect.left() + 10.0, rect.center().y),
+                                        Vec2::splat(16.0),
+                                    );
+                                    icons::draw(
+                                        ui.painter(),
+                                        icon_rect,
+                                        icons::icon_for_file(&dl.file_name),
+                                        theme::muted(ui.visuals().dark_mode),
+                                    );
+                                    let painter = ui.painter().with_clip_rect(rect);
+                                    painter.text(
+                                        Pos2::new(rect.left() + 24.0, rect.center().y),
+                                        Align2::LEFT_CENTER,
+                                        &dl.file_name,
+                                        FontId::proportional(12.5),
+                                        theme::text(ui.visuals().dark_mode),
+                                    );
                                 });
                             }
                             if self.columns.status {
                                 row.col(|ui| {
                                     let (text, color) = status_text(&dl);
-                                    ui.label(RichText::new(text).color(color).size(11.5));
+                                    cell_text_colored(ui, &text, color, 11.5);
                                 });
                             }
                             if self.columns.size {
                                 row.col(|ui| {
-                                    ui.label(dl.size.map(odm_core::util::format_bytes).unwrap_or_else(|| "?".into()));
+                                    cell_text(
+                                        ui,
+                                        &dl.size
+                                            .map(odm_core::util::format_bytes)
+                                            .unwrap_or_else(|| "?".into()),
+                                        12.5,
+                                    );
                                 });
                             }
                             if self.columns.time_left {
                                 row.col(|ui| {
-                                    ui.label(
-                                        dl.time_left()
+                                    cell_text(
+                                        ui,
+                                        &dl.time_left()
                                             .map(odm_core::util::format_time_left)
                                             .unwrap_or_default(),
+                                        12.5,
                                     );
                                 });
                             }
                             if self.columns.rate {
                                 row.col(|ui| {
                                     if dl.status.is_active() {
-                                        ui.label(odm_core::util::format_speed(dl.speed));
+                                        cell_text(
+                                            ui,
+                                            &odm_core::util::format_speed(dl.speed),
+                                            12.5,
+                                        );
                                     }
                                 });
                             }
                             if self.columns.description {
                                 row.col(|ui| {
-                                    ui.label(&dl.description);
+                                    cell_text(ui, &dl.description, 12.5);
                                 });
                             }
                             if self.columns.date_added {
                                 row.col(|ui| {
-                                    ui.label(odm_core::util::format_date(dl.created));
+                                    cell_text(ui, &odm_core::util::format_date(dl.created), 12.5);
                                 });
                             }
                             if self.columns.last_try {
                                 row.col(|ui| {
-                                    ui.label(dl.last_try.map(odm_core::util::format_date).unwrap_or_default());
+                                    cell_text(
+                                        ui,
+                                        &dl.last_try
+                                            .map(odm_core::util::format_date)
+                                            .unwrap_or_default(),
+                                        12.5,
+                                    );
                                 });
                             }
                             if self.columns.save_to {
                                 row.col(|ui| {
-                                    ui.label(dl.save_dir.to_string_lossy());
+                                    cell_text(ui, &dl.save_dir.to_string_lossy(), 12.5);
                                 });
                             }
                             if self.columns.referer {
                                 row.col(|ui| {
-                                    ui.label(&dl.referer);
+                                    cell_text(ui, &dl.referer, 12.5);
                                 });
                             }
                             let resp = row.response();
                             if resp.clicked() {
                                 actions.push(RowAction::Select(id, ctrl_pressed, shift_pressed));
                             }
+                            if resp.secondary_clicked() && !selected {
+                                actions.push(RowAction::Select(id, false, false));
+                            }
                             if resp.double_clicked() {
                                 actions.push(RowAction::Open(id));
                             }
+                            let complete = dl.status == Status::Complete;
                             resp.context_menu(|ui| {
-                                if ui.button("Resume").clicked() {
-                                    actions.push(RowAction::Start(id));
-                                    ui.close_menu();
-                                }
-                                if ui.button("Stop").clicked() {
-                                    actions.push(RowAction::Stop(id));
-                                    ui.close_menu();
-                                }
-                                if ui.button("Pause").clicked() {
-                                    actions.push(RowAction::Pause(id));
-                                    ui.close_menu();
+                                if complete {
+                                    if ui.button("Download again").clicked() {
+                                        actions.push(RowAction::Restart(id));
+                                        ui.close_menu();
+                                    }
+                                } else {
+                                    if ui.button("Resume").clicked() {
+                                        actions.push(RowAction::Start(id));
+                                        ui.close_menu();
+                                    }
+                                    if ui.button("Stop").clicked() {
+                                        actions.push(RowAction::Stop(id));
+                                        ui.close_menu();
+                                    }
+                                    if ui.button("Pause").clicked() {
+                                        actions.push(RowAction::Pause(id));
+                                        ui.close_menu();
+                                    }
                                 }
                                 if ui.button("Remove").clicked() {
                                     actions.push(RowAction::Remove(id));
@@ -1157,8 +1215,8 @@ impl IdmApp {
                                     }
                                     ui.close_menu();
                                 }
-                                if ui.button("Refresh download address").clicked() {
-                                    actions.push(RowAction::Refresh(id));
+                                if !complete && ui.button("Restart download").clicked() {
+                                    actions.push(RowAction::Restart(id));
                                     ui.close_menu();
                                 }
                             });
@@ -1220,6 +1278,7 @@ impl IdmApp {
                     self.dialogs.confirm_delete = Some(vec![id]);
                 } else {
                     self.engine.remove(vec![id], self.cfg.delete_file_with_item);
+                    self.selected.remove(&id);
                 }
             }
             RowAction::Properties(id) => {
@@ -1228,16 +1287,47 @@ impl IdmApp {
                 }
             }
             RowAction::Refresh(id) => {
-                self.engine.remove(vec![id], false);
-                if let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() {
-                    self.add_download(AddRequest {
-                        url: d.url,
-                        start: true,
-                        ..Default::default()
-                    });
-                }
+                self.restart_download(id);
+            }
+            RowAction::Restart(id) => {
+                self.restart_download(id);
             }
         }
+    }
+
+    fn restart_selected(&mut self) {
+        let ids: Vec<u64> = self
+            .selected_downloads()
+            .iter()
+            .filter(|d| matches!(d.status, Status::Complete | Status::Error))
+            .map(|d| d.id)
+            .collect();
+        for id in ids {
+            self.restart_download(id);
+        }
+    }
+
+    fn restart_download(&mut self, id: u64) {
+        let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() else {
+            return;
+        };
+        self.engine.remove(vec![id], false);
+        self.add_download(AddRequest {
+            url: d.url,
+            save_dir: Some(d.save_dir),
+            file_name: Some(d.file_name),
+            description: d.description,
+            referer: d.referer,
+            cookies: d.cookies,
+            user_agent: Some(d.user_agent),
+            username: d.username,
+            password: d.password,
+            post_data: d.post_data,
+            category: Some(d.category),
+            queue_id: Some(d.queue_id),
+            start: true,
+            silent: false,
+        });
     }
 
     fn handle_shortcuts(&mut self, ctx: &egui::Context) {
@@ -1422,6 +1512,23 @@ enum RowAction {
     Remove(u64),
     Properties(u64),
     Refresh(u64),
+    Restart(u64),
+}
+
+fn cell_text(ui: &mut egui::Ui, text: &str, size: f32) {
+    let color = theme::text(ui.visuals().dark_mode);
+    cell_text_colored(ui, text, color, size);
+}
+
+fn cell_text_colored(ui: &mut egui::Ui, text: &str, color: Color32, size: f32) {
+    let rect = ui.max_rect();
+    ui.painter().with_clip_rect(rect).text(
+        Pos2::new(rect.left() + 2.0, rect.center().y),
+        Align2::LEFT_CENTER,
+        text,
+        FontId::proportional(size),
+        color,
+    );
 }
 
 fn status_text(d: &Download) -> (String, Color32) {

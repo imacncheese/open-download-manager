@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/odm-core", "crates/odm-app", "crates/odm-host"]
 
 [workspace.package]
-version = "1.0.6"
+version = "1.0.7"
 edition = "2021"
 authors = ["Open Download Manager contributors"]
 license = "MIT"
