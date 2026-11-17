@@ -203,6 +203,17 @@ pub enum ThemeMode {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum AccentColor {
+    #[default]
+    Blue,
+    Violet,
+    Teal,
+    Orange,
+    Rose,
+    Green,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum ToolbarStyle {
     Classic,
     Small,
@@ -254,6 +265,8 @@ pub struct Config {
     pub start_immediately_with_info: bool,
     pub show_progress_dialog: bool,
     pub theme: ThemeMode,
+    #[serde(default)]
+    pub accent: AccentColor,
     pub toolbar_style: ToolbarStyle,
     pub large_buttons: bool,
     pub show_categories: bool,
@@ -393,6 +406,7 @@ impl Default for Config {
             start_immediately_with_info: true,
             show_progress_dialog: true,
             theme: ThemeMode::System,
+            accent: AccentColor::Blue,
             toolbar_style: ToolbarStyle::Large,
             large_buttons: true,
             show_categories: true,

@@ -67,7 +67,7 @@ pub fn toolbar_button(
                 egui::Rounding::same(5),
                 Stroke::new(
                     1.0,
-                    theme::ACCENT.gamma_multiply(border_a as f32 / 255.0),
+                    theme::accent().gamma_multiply(border_a as f32 / 255.0),
                 ),
                 egui::StrokeKind::Inside,
             );
@@ -76,7 +76,7 @@ pub fn toolbar_button(
 
     let color = if enabled {
         if pressed {
-            theme::ACCENT
+            theme::accent()
         } else {
             theme::text(dark)
         }
@@ -173,7 +173,7 @@ pub fn progress_bar_sized(
     if anim > 0.0 {
         let mut fill = rect.shrink(1.0);
         fill.set_width(((rect.width() - 2.0) * anim).max(2.0));
-        p.rect_filled(fill, egui::Rounding::same(3), theme::ACCENT);
+        p.rect_filled(fill, egui::Rounding::same(3), theme::accent());
         // Soft top highlight for a glossy, modern fill.
         let mut hi = fill;
         hi.set_height((fill.height() * 0.42).max(1.0));

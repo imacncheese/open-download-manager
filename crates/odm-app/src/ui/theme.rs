@@ -5,13 +5,42 @@
 use eframe::egui::{
     self, Color32, FontData, FontDefinitions, FontFamily, Rounding, Shadow, Stroke, Visuals,
 };
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub const ACCENT: Color32 = Color32::from_rgb(0, 120, 212);
 pub const ACCENT_HOVER: Color32 = Color32::from_rgb(22, 110, 190);
+static ACCENT_RGB: AtomicU32 = AtomicU32::new(0x0078D4);
 pub const ODM_BLUE: Color32 = ACCENT;
 pub const ODM_GREEN: Color32 = Color32::from_rgb(16, 124, 64);
 pub const ODM_RED: Color32 = Color32::from_rgb(196, 43, 28);
 pub const ODM_AMBER: Color32 = Color32::from_rgb(157, 93, 0);
+
+pub fn set_accent(accent: odm_core::config::AccentColor) {
+    use odm_core::config::AccentColor;
+    let rgb = match accent {
+        AccentColor::Blue => 0x0078D4,
+        AccentColor::Violet => 0x7C4DFF,
+        AccentColor::Teal => 0x009688,
+        AccentColor::Orange => 0xE67E22,
+        AccentColor::Rose => 0xD43C78,
+        AccentColor::Green => 0x109650,
+    };
+    ACCENT_RGB.store(rgb, Ordering::Relaxed);
+}
+
+pub fn accent() -> Color32 {
+    let v = ACCENT_RGB.load(Ordering::Relaxed);
+    Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
+}
+
+pub fn accent_hover() -> Color32 {
+    let c = accent();
+    Color32::from_rgb(
+        (c.r() as f32 * 0.82) as u8,
+        (c.g() as f32 * 0.82) as u8,
+        (c.b() as f32 * 0.82) as u8,
+    )
+}
 
 pub const PANEL_LIGHT: Color32 = Color32::from_rgb(243, 243, 243);
 pub const PANEL_DARK: Color32 = Color32::from_rgb(32, 33, 36);
@@ -178,7 +207,7 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     } else {
         Color32::from_rgb(235, 244, 252)
     };
-    v.widgets.hovered.bg_stroke = Stroke::new(1.0, ACCENT);
+    v.widgets.hovered.bg_stroke = Stroke::new(1.0, accent());
     v.widgets.hovered.fg_stroke = Stroke::new(1.0, if dark { Color32::WHITE } else { text(false) });
     v.widgets.hovered.corner_radius = Rounding::same(4);
 
@@ -187,17 +216,17 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     } else {
         Color32::from_rgb(204, 228, 247)
     };
-    v.widgets.active.bg_stroke = Stroke::new(1.0, ACCENT_HOVER);
+    v.widgets.active.bg_stroke = Stroke::new(1.0, accent_hover());
     v.widgets.active.fg_stroke = Stroke::new(1.0, text(dark));
     v.widgets.active.corner_radius = Rounding::same(4);
 
     v.selection.bg_fill = if dark {
         Color32::from_rgb(11, 87, 208)
     } else {
-        Color32::from_rgb(0, 120, 212)
+        accent()
     };
     v.selection.stroke = Stroke::new(1.0, Color32::WHITE);
-    v.hyperlink_color = ACCENT;
+    v.hyperlink_color = accent();
     v.override_text_color = Some(text(dark));
     style.visuals = v;
     ctx.set_style(style);

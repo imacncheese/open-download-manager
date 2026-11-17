@@ -592,6 +592,7 @@ impl IdmApp {
             self.dark = matches!(self.cfg.theme, odm_core::config::ThemeMode::Dark)
                 || (matches!(self.cfg.theme, odm_core::config::ThemeMode::System)
                     && theme::windows_dark_mode());
+            theme::set_accent(self.cfg.accent);
             theme::apply(ctx, self.dark);
             self.status = "Settings saved.".into();
             open = false;
@@ -1480,11 +1481,80 @@ fn options_general(ui: &mut egui::Ui, st: &mut OptionsState) {
         }
     });
     ui.add_space(6.0);
-    widgets::group_title(ui, "Theme");
+    widgets::group_title(ui, "Appearance");
     ui.horizontal(|ui| {
-        ui.radio_value(&mut st.cfg.theme, odm_core::config::ThemeMode::System, "System");
-        ui.radio_value(&mut st.cfg.theme, odm_core::config::ThemeMode::Light, "Light");
-        ui.radio_value(&mut st.cfg.theme, odm_core::config::ThemeMode::Dark, "Dark");
+        use odm_core::config::ThemeMode;
+        for (mode, label, hint) in [
+            (ThemeMode::System, "System", "Match Windows"),
+            (ThemeMode::Light, "Light", "Bright surfaces"),
+            (ThemeMode::Dark, "Dark", "Low-light surfaces"),
+        ] {
+            let selected = st.cfg.theme == mode;
+            let dark_preview = matches!(mode, ThemeMode::Dark);
+            let fill = if selected {
+                theme::accent().gamma_multiply(0.16)
+            } else {
+                theme::surface(dark_preview)
+            };
+            let stroke = if selected {
+                Stroke::new(1.5, theme::accent())
+            } else {
+                Stroke::new(1.0, theme::border(ui.visuals().dark_mode))
+            };
+            let card = egui::Frame::none()
+                .fill(fill)
+                .stroke(stroke)
+                .rounding(egui::Rounding::same(8))
+                .inner_margin(egui::Margin::same(10))
+                .show(ui, |ui| {
+                    ui.set_width(96.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(RichText::new(label).strong());
+                        ui.label(
+                            RichText::new(hint)
+                                .size(9.5)
+                                .color(theme::muted(ui.visuals().dark_mode)),
+                        );
+                    });
+                })
+                .response
+                .interact(egui::Sense::click());
+            if card.clicked() {
+                st.cfg.theme = mode;
+            }
+        }
+    });
+    ui.add_space(6.0);
+    ui.label(
+        RichText::new("Accent color")
+            .size(11.0)
+            .color(theme::muted(ui.visuals().dark_mode)),
+    );
+    ui.horizontal(|ui| {
+        use odm_core::config::AccentColor;
+        for (accent, color, label) in [
+            (AccentColor::Blue, Color32::from_rgb(0, 120, 212), "Blue"),
+            (AccentColor::Violet, Color32::from_rgb(124, 77, 255), "Violet"),
+            (AccentColor::Teal, Color32::from_rgb(0, 150, 136), "Teal"),
+            (AccentColor::Orange, Color32::from_rgb(230, 126, 34), "Orange"),
+            (AccentColor::Rose, Color32::from_rgb(212, 60, 120), "Rose"),
+            (AccentColor::Green, Color32::from_rgb(16, 150, 80), "Green"),
+        ] {
+            let selected = st.cfg.accent == accent;
+            let (rect, resp) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::click());
+            ui.painter().circle_filled(rect.center(), 10.0, color);
+            if selected {
+                ui.painter().circle_stroke(
+                    rect.center(),
+                    13.0,
+                    Stroke::new(2.0, theme::text(ui.visuals().dark_mode)),
+                );
+            }
+            if resp.clicked() {
+                st.cfg.accent = accent;
+            }
+            resp.on_hover_text(label);
+        }
     });
     ui.add_space(6.0);
     widgets::group_title(ui, "Dialogs");

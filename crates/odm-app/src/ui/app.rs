@@ -117,6 +117,7 @@ impl IdmApp {
     ) -> Self {
         theme::install(&cc.egui_ctx);
         let cfg = engine.config();
+        theme::set_accent(cfg.accent);
         let dark = match cfg.theme {
             odm_core::config::ThemeMode::Dark => true,
             odm_core::config::ThemeMode::Light => false,
@@ -608,17 +609,45 @@ impl IdmApp {
                             ui.close_menu();
                         }
                         ui.separator();
-                        let mut dark = self.dark;
-                        if ui.checkbox(&mut dark, "Dark Mode").changed() {
-                            self.dark = dark;
-                            theme::apply(ctx, dark);
-                            self.cfg.theme = if dark {
-                                odm_core::config::ThemeMode::Dark
-                            } else {
-                                odm_core::config::ThemeMode::Light
-                            };
-                            self.engine.set_config(self.cfg.clone());
-                        }
+                        ui.menu_button("Appearance", |ui| {
+                            use odm_core::config::ThemeMode;
+                            for (label, mode) in [
+                                ("System", ThemeMode::System),
+                                ("Light", ThemeMode::Light),
+                                ("Dark", ThemeMode::Dark),
+                            ] {
+                                let mut selected = self.cfg.theme == mode;
+                                if ui.radio_value(&mut selected, true, label).clicked() {
+                                    self.apply_theme(ctx, mode);
+                                    ui.close_menu();
+                                }
+                            }
+                            ui.separator();
+                            ui.label(
+                                RichText::new("Accent color").color(theme::muted(self.dark)),
+                            );
+                            ui.horizontal(|ui| {
+                                for (accent, color, label) in accent_choices() {
+                                    let selected = self.cfg.accent == accent;
+                                    let (rect, resp) =
+                                        ui.allocate_exact_size(Vec2::splat(24.0), Sense::click());
+                                    ui.painter().circle_filled(rect.center(), 9.0, color);
+                                    if selected {
+                                        ui.painter().circle_stroke(
+                                            rect.center(),
+                                            11.5,
+                                            Stroke::new(2.0, theme::text(self.dark)),
+                                        );
+                                    }
+                                    if resp.clicked() {
+                                        self.cfg.accent = accent;
+                                        self.apply_theme(ctx, self.cfg.theme);
+                                        ui.close_menu();
+                                    }
+                                    resp.on_hover_text(label);
+                                }
+                            });
+                        });
                         ui.separator();
                         ui.menu_button("Language", |ui| {
                             ui.label("English");
@@ -737,6 +766,20 @@ impl IdmApp {
                             self.dialogs.find = Some(Default::default());
                         }
                     }
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if !self.search.is_empty() && ui.small_button("✕").clicked() {
+                            self.search.clear();
+                        }
+                        let mut query = self.search.clone();
+                        let resp = ui.add_sized(
+                            [210.0, 24.0],
+                            egui::TextEdit::singleline(&mut query)
+                                .hint_text("Search downloads..."),
+                        );
+                        if resp.changed() {
+                            self.search = query;
+                        }
+                    });
                 });
             });
     }
@@ -756,6 +799,32 @@ impl IdmApp {
                     .inner_margin(egui::Margin::symmetric(6, 5)),
             )
             .show(ctx, |ui| {
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    let (logo, _) = ui.allocate_exact_size(Vec2::splat(28.0), Sense::hover());
+                    ui.painter()
+                        .rect_filled(logo, egui::Rounding::same(7), theme::accent());
+                    icons::draw(
+                        ui.painter(),
+                        Rect::from_center_size(logo.center(), Vec2::splat(17.0)),
+                        Icon::AddUrl,
+                        Color32::WHITE,
+                    );
+                    ui.vertical(|ui| {
+                        ui.label(
+                            RichText::new("Open Download Manager")
+                                .size(12.5)
+                                .strong(),
+                        );
+                        ui.label(
+                            RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                                .size(9.5)
+                                .color(theme::muted(dark)),
+                        );
+                    });
+                });
+                ui.add_space(4.0);
+                ui.separator();
                 ui.add_space(2.0);
                 let all = self.downloads.len();
                 let unfinished = self.downloads.iter().filter(|d| d.status != Status::Complete).count();
@@ -925,7 +994,7 @@ impl IdmApp {
                                         ui.painter(),
                                         icon_rect,
                                         Icon::AddUrl,
-                                        theme::ACCENT,
+                                        theme::accent(),
                                     );
                                     ui.add_space(8.0);
                                     ui.label(
@@ -1466,6 +1535,18 @@ impl IdmApp {
         self.dialogs.options = Some(crate::ui::dialogs::OptionsState::new(&self.cfg));
     }
 
+    fn apply_theme(&mut self, ctx: &egui::Context, mode: odm_core::config::ThemeMode) {
+        self.cfg.theme = mode;
+        self.dark = match mode {
+            odm_core::config::ThemeMode::Dark => true,
+            odm_core::config::ThemeMode::Light => false,
+            odm_core::config::ThemeMode::System => theme::windows_dark_mode(),
+        };
+        theme::set_accent(self.cfg.accent);
+        theme::apply(ctx, self.dark);
+        self.engine.set_config(self.cfg.clone());
+    }
+
     fn open_grabber(&mut self) {
         if self.grabber.is_none() {
             self.grabber = Some(GrabberState::default());
@@ -1534,6 +1615,18 @@ enum RowAction {
     Restart(u64),
 }
 
+fn accent_choices() -> [(odm_core::config::AccentColor, Color32, &'static str); 6] {
+    use odm_core::config::AccentColor;
+    [
+        (AccentColor::Blue, Color32::from_rgb(0, 120, 212), "Blue"),
+        (AccentColor::Violet, Color32::from_rgb(124, 77, 255), "Violet"),
+        (AccentColor::Teal, Color32::from_rgb(0, 150, 136), "Teal"),
+        (AccentColor::Orange, Color32::from_rgb(230, 126, 34), "Orange"),
+        (AccentColor::Rose, Color32::from_rgb(212, 60, 120), "Rose"),
+        (AccentColor::Green, Color32::from_rgb(16, 150, 80), "Green"),
+    ]
+}
+
 fn cell_text(ui: &mut egui::Ui, text: &str, size: f32) {
     let color = theme::text(ui.visuals().dark_mode);
     cell_text_colored(ui, text, color, size);
@@ -1585,7 +1678,7 @@ fn tree_row(
     );
     if selected {
         ui.painter()
-            .rect_filled(rect, egui::Rounding::same(4), theme::ACCENT);
+            .rect_filled(rect, egui::Rounding::same(4), theme::accent());
     } else if hover_t > 0.0 {
         let hover_bg = if dark {
             Color32::from_rgb(58, 60, 65)
