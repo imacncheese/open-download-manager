@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Open Download Manager Integration Module — Options</title>
+  <style>
+    body { font: 13px "Segoe UI", sans-serif; margin: 24px; max-width: 640px; color: #222; }
+    h1 { font-size: 18px; }
+    fieldset { border: 1px solid #bbb; margin: 12px 0; padding: 10px 14px; }
+    legend { font-weight: 600; }
+    label { display: block; margin: 6px 0; }
+    textarea { width: 100%; height: 110px; font: 12px Consolas, monospace; }
+    .hint { color: #666; font-size: 12px; }
+    #status { color: #1a6b1a; }
+  </style>
+</head>
+<body>
+  <h1>Open Download Manager Integration Module</h1>
+  <p class="hint">This extension hands downloads to the Open Download Manager desktop application through a native messaging host.</p>
+
+  <fieldset>
+    <legend>Integration</legend>
+    <label><input type="checkbox" id="enabled" /> Enable Open Download Manager integration</label>
+    <label><input type="checkbox" id="intercept" /> Take over browser downloads</label>
+    <label><input type="checkbox" id="panel" /> Show the in-page download panel for media</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>File types taken over</legend>
+    <p class="hint">Space separated extensions. Empty means all non-HTML downloads.</p>
+    <textarea id="exts"></textarea>
+  </fieldset>
+
+  <p><button id="save">Save</button> <button id="ping">Test connection</button> <span id="status"></span></p>
+
+  <fieldset>
+    <legend>Installing the native host</legend>
+    <p class="hint">Run <code>odm-native-host.exe --install</code> from the Open Download Manager installation folder (or use Options → Browser in the app). Then reload this extension.</p>
+  </fieldset>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+/target
+/dist
+/tools
+/installer/obj
+/installer/tmp
+/installer/*.log
+*.log
+**/*.pdb
+**/*.d
+IDM-RS-data/
+OpenDownloadManager-data/
+.idm-rs/
+.open-download-manager/
+.env
+.env.*
+.ghconfig/

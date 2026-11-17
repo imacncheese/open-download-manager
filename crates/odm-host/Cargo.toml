@@ -1,0 +1,16 @@
+[package]
+name = "odm-host"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "odm-native-host"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Open Download Manager"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Open Download Manager contributors"
+           UpgradeCode="$(var.UpgradeGuid)">
+
+    <Package Id="*"
+             InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perUser"
+             InstallPrivileges="limited"
+             Platform="x64"
+             Description="Open Download Manager $(var.Version)"
+             Comments="Free download manager with segmented transfers, queues and browser integration." />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Open Download Manager is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="OdmIcon" SourceFile="$(var.SourceDir)\odm.ico" />
+    <Property Id="ARPPRODUCTICON" Value="OdmIcon" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)\license.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ProjectDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ProjectDir)\dialog.bmp" />
+    <UIRef Id="WixUI_InstallDir" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsFolder" Name="Programs">
+          <Directory Id="INSTALLFOLDER" Name="Open Download Manager">
+            <Directory Id="ExtensionFolder" Name="extension" />
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuFolder" Name="Open Download Manager" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="$(var.MainGuid)" Win64="yes">
+        <File Id="MainExe" Source="$(var.SourceDir)\OpenDownloadManager.exe" KeyPath="yes" />
+      </Component>
+
+      <Component Id="NativeHost" Guid="$(var.HostGuid)" Win64="yes">
+        <File Id="HostExe" Source="$(var.SourceDir)\odm-native-host.exe" KeyPath="yes" />
+      </Component>
+
+      <Component Id="ApplicationIcon" Guid="$(var.IconGuid)">
+        <File Id="IconFile" Source="$(var.SourceDir)\odm.ico" KeyPath="yes" />
+      </Component>
+
+      <Component Id="UserArpEntry" Guid="$(var.ArpGuid)" Win64="yes">
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[ProductCode]">
+          <RegistryValue Name="DisplayName" Type="string" Value="Open Download Manager" KeyPath="yes" />
+          <RegistryValue Name="DisplayVersion" Type="string" Value="$(var.Version)" />
+          <RegistryValue Name="Publisher" Type="string" Value="Open Download Manager contributors" />
+          <RegistryValue Name="DisplayIcon" Type="string" Value="[INSTALLFOLDER]odm.ico" />
+          <RegistryValue Name="InstallLocation" Type="string" Value="[INSTALLFOLDER]" />
+          <RegistryValue Name="UninstallString" Type="string" Value="MsiExec.exe /x [ProductCode]" />
+          <RegistryValue Name="NoModify" Type="integer" Value="1" />
+          <RegistryValue Name="NoRepair" Type="integer" Value="1" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="StartMenuShortcut" Guid="$(var.ShortcutGuid)">
+        <Shortcut Id="AppStartMenuShortcut"
+                  Directory="AppMenuFolder"
+                  Name="Open Download Manager"
+                  Description="Free download manager"
+                  Target="[INSTALLFOLDER]OpenDownloadManager.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="OdmIcon" />
+        <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\OpenDownloadManager" Name="StartMenuShortcut"
+                       Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Open Download Manager" Level="1" Display="expand" InstallDefault="local">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="NativeHost" />
+      <ComponentRef Id="ApplicationIcon" />
+      <ComponentRef Id="UserArpEntry" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentGroupRef Id="ExtensionComponents" />
+    </Feature>
+
+    <CustomAction Id="InstallBrowserHost"
+                  FileKey="HostExe"
+                  ExeCommand="--install"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
+    <CustomAction Id="UninstallBrowserHost"
+                  FileKey="HostExe"
+                  ExeCommand="--uninstall"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="InstallBrowserHost" After="InstallFiles">NOT Installed</Custom>
+      <Custom Action="UninstallBrowserHost" Before="RemoveFiles">REMOVE~="ALL"</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

@@ -1,0 +1,71 @@
+#odm-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2147483647;
+  width: 280px;
+  font: 12px "Segoe UI", Tahoma, sans-serif;
+  color: #e8e8e8;
+  background: #1f3b63;
+  border: 1px solid #0b1d33;
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+#odm-panel.odm-show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#odm-panel .odm-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: linear-gradient(#2e5a91, #1f3b63);
+  border-bottom: 1px solid #16304f;
+  border-radius: 3px 3px 0 0;
+}
+#odm-panel .odm-logo {
+  font-weight: 700;
+  color: #7ee07e;
+  letter-spacing: 0.5px;
+}
+#odm-panel .odm-title {
+  flex: 1;
+  color: #cfe0f5;
+}
+#odm-panel .odm-close {
+  background: none;
+  border: none;
+  color: #cfe0f5;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+#odm-panel .odm-body {
+  padding: 8px;
+}
+#odm-panel .odm-name {
+  margin-bottom: 6px;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#odm-panel .odm-dl {
+  width: 100%;
+  padding: 6px 8px;
+  background: #2f7d32;
+  color: #fff;
+  border: 1px solid #1d5a20;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+}
+#odm-panel .odm-dl:hover {
+  background: #389b3c;
+}

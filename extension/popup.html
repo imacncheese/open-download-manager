@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font: 12px "Segoe UI", sans-serif; width: 260px; margin: 0; background: #f0f0f0; }
+    .head { background: #1f3b63; color: #fff; padding: 8px 10px; }
+    .head b { color: #7ee07e; }
+    .body { padding: 10px; }
+    label { display: block; margin: 6px 0; }
+    .row { display: flex; align-items: center; gap: 6px; }
+    button { padding: 4px 8px; }
+    .status { color: #444; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="head"><b>IDM</b> Integration Module</div>
+  <div class="body">
+    <div class="row"><input type="checkbox" id="enabled" /><label for="enabled">Enable Open Download Manager integration</label></div>
+    <div class="row"><input type="checkbox" id="intercept" /><label for="intercept">Take over browser downloads</label></div>
+    <div class="row"><input type="checkbox" id="panel" /><label for="panel">Show download panel for media</label></div>
+    <button id="ping">Check connection</button>
+    <div class="status" id="status"></div>
+    <p><a href="options.html" target="_blank">More options</a></p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

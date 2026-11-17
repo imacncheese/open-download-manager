@@ -1,0 +1,28 @@
+[package]
+name = "odm-app"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "OpenDownloadManager"
+path = "src/main.rs"
+
+[dependencies]
+odm-core = { path = "../odm-core" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+rfd = "0.15"
+eframe = { version = "0.31", default-features = false, features = ["glow", "default_fonts"] }
+egui = "0.31"
+egui_extras = "0.31"
+image = { version = "0.25", default-features = false, features = ["png", "ico"] }
+tray-icon = "0.20"
+single-instance = "0.3"
+open = "5"
+arboard = "3"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
