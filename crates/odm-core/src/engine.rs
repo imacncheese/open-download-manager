@@ -48,6 +48,7 @@ pub enum EngineEvent {
     Failed(DownloadId, String),
     QueueStarted(u64),
     QueueStopped(u64),
+    ShowWindow,
 }
 
 struct PartAtom {

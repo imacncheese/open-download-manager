@@ -23,6 +23,7 @@ tray-icon = "0.20"
 single-instance = "0.3"
 open = "5"
 arboard = "3"
+raw-window-handle = "0.6"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

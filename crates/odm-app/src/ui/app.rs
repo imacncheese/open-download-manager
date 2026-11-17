@@ -102,6 +102,7 @@ pub struct IdmApp {
     pub info: Option<(String, String)>,
     pub clip: Option<arboard::Clipboard>,
     pub last_clip_check: Instant,
+    pub hwnd: Option<isize>,
 }
 
 impl IdmApp {
@@ -142,14 +143,18 @@ impl IdmApp {
             info: None,
             clip: arboard::Clipboard::new().ok(),
             last_clip_check: Instant::now(),
+            hwnd: None,
         }
     }
 
     // ---------------------------------------------------------------- events
 
-    fn poll(&mut self) {
+    fn poll(&mut self, ctx: &egui::Context) {
         while let Ok(ev) = self.events.try_recv() {
             match ev {
+                EngineEvent::ShowWindow => {
+                    self.restore(ctx);
+                }
                 EngineEvent::Completed(id) => {
                     if let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() {
                         self.status = format!("{} download complete.", d.file_name);
@@ -1294,8 +1299,35 @@ impl IdmApp {
 
     fn restore(&mut self, ctx: &egui::Context) {
         self.hidden = false;
+        #[cfg(windows)]
+        if let Some(h) = self.hwnd {
+            unsafe {
+                win::ShowWindow(h, win::SW_RESTORE);
+                win::ShowWindow(h, win::SW_SHOW);
+                win::SetForegroundWindow(h);
+            }
+        }
         ctx.send_viewport_cmd(ViewportCommand::Visible(true));
+        ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
         ctx.send_viewport_cmd(ViewportCommand::Focus);
+        ctx.request_repaint();
+    }
+
+    fn handle_tray_click(&mut self, ctx: &egui::Context) {
+        while let Ok(ev) = tray_icon::TrayIconEvent::receiver().try_recv() {
+            match ev {
+                tray_icon::TrayIconEvent::Click {
+                    button: tray_icon::MouseButton::Left,
+                    button_state: tray_icon::MouseButtonState::Up,
+                    ..
+                }
+                | tray_icon::TrayIconEvent::DoubleClick {
+                    button: tray_icon::MouseButton::Left,
+                    ..
+                } => self.restore(ctx),
+                _ => {}
+            }
+        }
     }
 }
 
@@ -1379,8 +1411,27 @@ fn tree_row(
     resp
 }
 
-fn load_tips() -> Vec<String> {
-    vec![
+#[cfg(windows)]
+fn native_hwnd(frame: &eframe::Frame) -> Option<isize> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    match frame.window_handle().ok()?.as_raw() {
+        RawWindowHandle::Win32(h) => Some(h.hwnd.get()),
+        _ => None,
+    }
+}
+
+#[cfg(windows)]
+mod win {
+    #[link(name = "user32")]
+    extern "system" {
+        pub fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+        pub fn SetForegroundWindow(hwnd: isize) -> i32;
+    }
+    pub const SW_SHOW: i32 = 5;
+    pub const SW_RESTORE: i32 = 9;
+}
+
+fn load_tips() -> Vec<String> {    vec![
         "Open Download Manager downloads files using several connections at the same time. Use Options -> Connection to change the number.".into(),
         "You can drag and drop links onto the main window.".into(),
         "The scheduler can start and stop the download queue at a chosen time.".into(),
@@ -1388,9 +1439,14 @@ fn load_tips() -> Vec<String> {
 }
 
 impl eframe::App for IdmApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.poll();
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        #[cfg(windows)]
+        if self.hwnd.is_none() {
+            self.hwnd = native_hwnd(frame);
+        }
+        self.poll(ctx);
         self.handle_tray(ctx);
+        self.handle_tray_click(ctx);
         self.handle_shortcuts(ctx);
         self.clipboard_tick(ctx);
 
@@ -1400,7 +1456,9 @@ impl eframe::App for IdmApp {
             && !self.hidden
         {
             ctx.send_viewport_cmd(ViewportCommand::CancelClose);
-            ctx.send_viewport_cmd(ViewportCommand::Visible(false));
+            // Minimize instead of hiding: a hidden winit window stops
+            // dispatching updates, which also broke tray/relaunch restore.
+            ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
             self.hidden = true;
         }
 
@@ -1412,10 +1470,13 @@ impl eframe::App for IdmApp {
         self.show_dialogs(ctx);
 
         let active = self.downloads.iter().any(|d| d.status.is_active());
-        ctx.request_repaint_after(if active {
+        let interval = if self.hidden {
+            Duration::from_secs(2)
+        } else if active {
             Duration::from_millis(250)
         } else {
             Duration::from_secs(1)
-        });
+        };
+        ctx.request_repaint_after(interval);
     }
 }

@@ -33,6 +33,13 @@ fn main() -> eframe::Result<()> {
                         };
                         let _ = odm_core::ipc::send_request(port, &req);
                     }
+                    // Bring the existing (possibly tray-hidden) window forward.
+                    let req = IpcRequest {
+                        token,
+                        cmd: "focus".into(),
+                        ..Default::default()
+                    };
+                    let _ = odm_core::ipc::send_request(port, &req);
                 }
             }
         }

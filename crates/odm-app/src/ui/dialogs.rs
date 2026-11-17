@@ -1236,7 +1236,7 @@ fn options_general(ui: &mut egui::Ui, st: &mut OptionsState) {
         &mut st.cfg.monitor_clipboard,
         "Automatically start downloading of URLs placed to clipboard",
     );
-    ui.checkbox(&mut st.cfg.close_to_tray, "Minimize to system tray on close");
+    ui.checkbox(&mut st.cfg.close_to_tray, "Minimize on close (tray icon stays available)");
     ui.checkbox(&mut st.cfg.start_minimized, "Start minimized");
     ui.add_space(6.0);
     widgets::group_title(ui, "Browser/System Integration");

@@ -223,7 +223,7 @@ async fn handle(
                 }
             }
             "focus" => {
-                let _ = shared.emit(EngineEvent::Changed);
+                let _ = shared.emit(EngineEvent::ShowWindow);
                 IpcResponse {
                     ok: true,
                     ..Default::default()
