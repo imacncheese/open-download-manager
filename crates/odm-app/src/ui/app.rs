@@ -109,7 +109,12 @@ pub struct IdmApp {
 }
 
 impl IdmApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, engine: Engine, events: std::sync::mpsc::Receiver<EngineEvent>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        engine: Engine,
+        events: std::sync::mpsc::Receiver<EngineEvent>,
+        browser_setup: bool,
+    ) -> Self {
         theme::install(&cc.egui_ctx);
         let cfg = engine.config();
         let dark = match cfg.theme {
@@ -133,7 +138,10 @@ impl IdmApp {
             status: String::new(),
             dark,
             columns: Columns::default(),
-            dialogs: Dialogs::default(),
+            dialogs: Dialogs {
+                browser_setup,
+                ..Default::default()
+            },
             tray: tray::create(),
             hidden: false,
             last_refresh: Instant::now() - Duration::from_secs(1),
@@ -649,6 +657,10 @@ impl IdmApp {
                             ui.close_menu();
                         }
                         ui.separator();
+                        if ui.button("Enable browser integration...").clicked() {
+                            self.dialogs.browser_setup = true;
+                            ui.close_menu();
+                        }
                         if ui.button("About Open Download Manager...").clicked() {
                             self.dialogs.about = true;
                             ui.close_menu();

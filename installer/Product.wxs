@@ -77,9 +77,31 @@
                   Target="[INSTALLFOLDER]OpenDownloadManager.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   Icon="OdmIcon" />
+        <Shortcut Id="BrowserSetupShortcut"
+                  Directory="AppMenuFolder"
+                  Name="Enable browser integration"
+                  Description="Enable Download with ODM in Chrome and Edge"
+                  Target="[INSTALLFOLDER]OpenDownloadManager.exe"
+                  Arguments="--browser-setup"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="OdmIcon" />
         <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\OpenDownloadManager" Name="StartMenuShortcut"
                        Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="ChromeExternalExtension" Guid="{A1B2C3D4-1111-4A2B-9C3D-000000000001}" Win64="yes">
+        <RegistryKey Root="HKCU" Key="Software\Google\Chrome\Extensions\fgghcmefceiogpcgejkebeadkackbcpa">
+          <RegistryValue Name="path" Type="string" Value="[ExtensionFolder]odm.crx" KeyPath="yes" />
+          <RegistryValue Name="version" Type="string" Value="1.0.10" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="EdgeExternalExtension" Guid="{A1B2C3D4-1111-4A2B-9C3D-000000000002}" Win64="yes">
+        <RegistryKey Root="HKCU" Key="Software\Microsoft\Edge\Extensions\fgghcmefceiogpcgejkebeadkackbcpa">
+          <RegistryValue Name="path" Type="string" Value="[ExtensionFolder]odm.crx" KeyPath="yes" />
+          <RegistryValue Name="version" Type="string" Value="1.0.10" />
+        </RegistryKey>
       </Component>
     </DirectoryRef>
 
@@ -89,6 +111,8 @@
       <ComponentRef Id="ApplicationIcon" />
       <ComponentRef Id="UserArpEntry" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="ChromeExternalExtension" />
+      <ComponentRef Id="EdgeExternalExtension" />
       <ComponentGroupRef Id="ExtensionComponents" />
     </Feature>
 

@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 const HOST_NAME: &str = "com.opendm.host";
+const EXTENSION_ID: &str = "fgghcmefceiogpcgejkebeadkackbcpa";
 
 fn appdata() -> PathBuf {
     if let Ok(v) = std::env::var("ODM_HOME") {
@@ -226,9 +227,44 @@ fn uninstall() -> anyhow::Result<()> {
         let _ = std::fs::remove_file(dir.join(name));
     }
     let _ = std::fs::remove_dir(&dir);
+    remove_installed_extension();
     println!("removed browser integration");
     Ok(())
 }
+
+/// Best-effort cleanup of the external extension and its unpacked copies.
+/// Chrome must be restarted for a running browser to drop the extension.
+#[cfg(windows)]
+fn remove_installed_extension() {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    for sub in [
+        format!(r"Software\Google\Chrome\Extensions\{EXTENSION_ID}"),
+        format!(r"Software\Microsoft\Edge\Extensions\{EXTENSION_ID}"),
+    ] {
+        let _ = hkcu.delete_subkey_all(sub);
+    }
+    let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+    if local.is_empty() {
+        return;
+    }
+    for base in [
+        format!(r"{local}\Google\Chrome\User Data"),
+        format!(r"{local}\Microsoft\Edge\User Data"),
+    ] {
+        let Ok(entries) = std::fs::read_dir(&base) else { continue };
+        for entry in entries.flatten() {
+            let ext = entry.path().join("Extensions").join(EXTENSION_ID);
+            if ext.is_dir() {
+                let _ = std::fs::remove_dir_all(ext);
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn remove_installed_extension() {}
 
 #[cfg(windows)]
 fn ca_data() -> std::collections::HashMap<String, String> {

@@ -36,6 +36,7 @@ pub struct Dialogs {
     pub columns: bool,
     pub speed_limiter: bool,
     pub tip: bool,
+    pub browser_setup: bool,
 }
 
 #[derive(Default, Clone)]
@@ -208,6 +209,7 @@ impl IdmApp {
         self.dialog_speed_limiter(ctx);
         self.dialog_confirm_delete(ctx);
         self.dialog_about(ctx);
+        self.dialog_browser_setup(ctx);
         self.dialog_tip(ctx);
         self.dialog_clipboard(ctx);
         self.dialog_info(ctx);
@@ -1272,6 +1274,79 @@ impl IdmApp {
         self.dialogs.about = open;
     }
 
+    fn dialog_browser_setup(&mut self, ctx: &egui::Context) {
+        if !self.dialogs.browser_setup {
+            return;
+        }
+        let mut open = true;
+        let mut close = false;
+        egui::Window::new("Browser integration")
+            .id(egui::Id::new("browser_setup"))
+            .collapsible(false)
+            .resizable(false)
+            .default_width(500.0)
+            .open(&mut open)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new("Download with ODM in your browser")
+                        .size(15.0)
+                        .strong(),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    "The extension is installed for Chrome and Edge. Chromium disables \
+                     locally installed extensions until you enable them once.",
+                );
+                ui.add_space(6.0);
+                ui.label("1. Open the browser's extensions page.");
+                ui.label("2. Turn on \"Open Download Manager Integration\".");
+                ui.label("3. Right-click any link and choose \"Download with ODM\".");
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Open Chrome extensions").clicked() {
+                        launch_browser_extensions(
+                            "chrome://extensions",
+                            &[
+                                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                            ],
+                        );
+                    }
+                    if ui.button("Open Edge extensions").clicked() {
+                        launch_browser_extensions(
+                            "edge://extensions",
+                            &[
+                                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+                            ],
+                        );
+                    }
+                });
+                ui.add_space(6.0);
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(
+                            "The extension and its registration are removed when ODM is uninstalled.",
+                        )
+                        .size(10.5)
+                        .color(theme::muted(ui.visuals().dark_mode)),
+                    );
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui
+                            .add(egui::Button::new("Close").min_size(egui::vec2(86.0, 26.0)))
+                            .clicked()
+                        {
+                            close = true;
+                        }
+                    });
+                });
+            });
+        if close || !open {
+            self.dialogs.browser_setup = false;
+        }
+    }
+
     fn dialog_tip(&mut self, ctx: &egui::Context) {
         if !self.dialogs.tip {
             return;
@@ -1364,6 +1439,15 @@ impl IdmApp {
         }
         if !open {
             self.info = None;
+        }
+    }
+}
+
+fn launch_browser_extensions(url: &str, candidates: &[&str]) {
+    for candidate in candidates {
+        if std::path::Path::new(candidate).exists() {
+            let _ = std::process::Command::new(candidate).arg(url).spawn();
+            return;
         }
     }
 }

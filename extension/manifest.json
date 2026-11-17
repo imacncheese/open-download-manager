@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Open Download Manager Integration",
-  "version": "1.0.9",
+  "version": "1.0.10",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArKfHMiXkBFS0KLpYEBOBI/5Vl/jZlYoD9n1S0YJj8W0X19Q2rGFa5CziZauQQOSY7szBOJ1kAK4Xlt4JPdO0en04g/c33Wg3vKsq4fXKmbDHG5nxO3QQeuQ19b3W240oazZvlhYHtTwEnU7k/GZtTWHIJo6ngv80yGtv0qBt7jzQC/3GXysnAaUcMUD01knM2JYLDEt8MBVtEUjAjqbcXsO+9Cq2UTfvCxE64eJbc366dLFMepSeBX1Wv7sjDkDWFkZ+BEpCmUVjjS6ICP95litW5w2275X1022dR8WjnrEItHH9aVlVNM3MoaoIsOGt6znPxN5ruOr0cyjf+tFtLQIDAQAB",
   "description": "Take over downloads with Open Download Manager.",
   "minimum_chrome_version": "102",
   "permissions": [

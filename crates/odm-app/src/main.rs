@@ -9,6 +9,7 @@ use ui::IdmApp;
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let browser_setup = args.iter().any(|a| a == "--browser-setup");
     let urls: Vec<String> = args
         .iter()
         .filter(|a| a.starts_with("http://") || a.starts_with("https://") || a.starts_with("ftp://"))
@@ -79,7 +80,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Open Download Manager",
         options,
-        Box::new(move |cc| Ok(Box::new(IdmApp::new(cc, engine, rx)))),
+        Box::new(move |cc| Ok(Box::new(IdmApp::new(cc, engine, rx, browser_setup)))),
     )
 }
 
