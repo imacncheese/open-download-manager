@@ -422,11 +422,11 @@ impl IdmApp {
     fn menu_bar(&mut self, ctx: &egui::Context) {
         let dark = self.dark;
         egui::TopBottomPanel::top("menubar")
-            .exact_height(23.0)
+            .exact_height(27.0)
             .frame(
                 egui::Frame::none()
                     .fill(if dark { Color32::from_rgb(40, 40, 40) } else { Color32::from_rgb(240, 240, 240) })
-                    .inner_margin(egui::Margin::symmetric(4, 1)),
+                    .inner_margin(egui::Margin::symmetric(8, 3)),
             )
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
@@ -643,16 +643,16 @@ impl IdmApp {
         let large = self.cfg.toolbar_style != ToolbarStyle::Small;
         let classic = self.cfg.toolbar_style == ToolbarStyle::Classic;
         let h = match self.cfg.toolbar_style {
-            ToolbarStyle::Large => 56.0,
-            ToolbarStyle::Small => 30.0,
-            ToolbarStyle::Classic => 40.0,
+            ToolbarStyle::Large => 60.0,
+            ToolbarStyle::Small => 34.0,
+            ToolbarStyle::Classic => 44.0,
         };
         egui::TopBottomPanel::top("toolbar")
             .exact_height(h)
             .frame(
                 egui::Frame::none()
                     .fill(if dark { theme::TOOLBAR_DARK } else { theme::TOOLBAR_LIGHT })
-                    .inner_margin(egui::Margin::symmetric(4, 2))
+                    .inner_margin(egui::Margin::symmetric(6, 3))
                     .stroke(Stroke::new(1.0, if dark { Color32::from_gray(70) } else { Color32::from_gray(180) })),
             )
             .show(ctx, |ui| {
@@ -721,7 +721,7 @@ impl IdmApp {
             .frame(
                 egui::Frame::none()
                     .fill(if dark { theme::PANEL_DARK } else { theme::PANEL_LIGHT })
-                    .inner_margin(egui::Margin::symmetric(4, 4)),
+                    .inner_margin(egui::Margin::symmetric(6, 5)),
             )
             .show(ctx, |ui| {
                 ui.add_space(2.0);
@@ -740,6 +740,12 @@ impl IdmApp {
                 ui.add_space(4.0);
                 ui.separator();
                 ui.add_space(2.0);
+                ui.label(
+                    RichText::new("CATEGORIES")
+                        .size(9.5)
+                        .strong()
+                        .color(theme::muted(dark)),
+                );
                 let cats = self.cfg.categories.clone();
                 for c in &cats {
                     let count = self.downloads.iter().filter(|d| d.category == c.id).count();
@@ -774,6 +780,12 @@ impl IdmApp {
                 ui.add_space(6.0);
                 ui.separator();
                 ui.add_space(2.0);
+                ui.label(
+                    RichText::new("QUEUES")
+                        .size(9.5)
+                        .strong()
+                        .color(theme::muted(dark)),
+                );
                 let queues = self.cfg.queues.clone();
                 for q in &queues {
                     let count = self.downloads.iter().filter(|d| d.queue_id == q.id).count();
@@ -792,7 +804,7 @@ impl IdmApp {
                         ui.label(
                             RichText::new(format!("{} downloads", self.downloads.len()))
                                 .size(10.0)
-                                .color(Color32::from_gray(120)),
+                                .color(theme::muted(dark)),
                         );
                     });
                 });
@@ -802,26 +814,38 @@ impl IdmApp {
     fn status_bar(&mut self, ctx: &egui::Context) {
         let dark = self.dark;
         egui::TopBottomPanel::bottom("statusbar")
-            .exact_height(23.0)
+            .exact_height(27.0)
             .frame(
                 egui::Frame::none()
                     .fill(if dark { theme::TOOLBAR_DARK } else { theme::TOOLBAR_LIGHT })
-                    .inner_margin(egui::Margin::symmetric(6, 2))
+                    .inner_margin(egui::Margin::symmetric(8, 3))
                     .stroke(Stroke::new(1.0, if dark { Color32::from_gray(70) } else { Color32::from_gray(180) })),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(format!(
-                        "{} file(s), {} selected",
-                        self.downloads.len(),
-                        self.selected.len()
-                    ));
+                    let files = self.downloads.len();
+                    let selected = self.selected.len();
+                    let mut summary = if files == 1 {
+                        "1 file".to_string()
+                    } else {
+                        format!("{} files", files)
+                    };
+                    if selected > 0 {
+                        summary.push_str(&format!("  ·  {} selected", selected));
+                    }
+                    ui.label(RichText::new(summary).color(theme::muted(dark)));
                     ui.separator();
                     let speed = self.total_speed();
                     if speed > 0 {
-                        ui.label(format!("Total: {}/sec", odm_core::util::format_bytes(speed)));
+                        ui.label(
+                            RichText::new(format!(
+                                "▼ {}/sec",
+                                odm_core::util::format_bytes(speed)
+                            ))
+                            .color(theme::ODM_GREEN),
+                        );
                     } else {
-                        ui.label("Idle");
+                        ui.label(RichText::new("Idle").color(theme::muted(dark)));
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         let limited = self.cfg.speed_limit_kbps > 0;
@@ -850,7 +874,62 @@ impl IdmApp {
                     .inner_margin(egui::Margin::same(4)),
             )
             .show(ctx, |ui| {
+                if self.downloads.is_empty() {
+                    ui.add_space(56.0);
+                    ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                        egui::Frame::none()
+                            .fill(theme::surface(dark))
+                            .stroke(Stroke::new(1.0, theme::border(dark)))
+                            .rounding(egui::Rounding::same(10))
+                            .inner_margin(egui::Margin::same(26))
+                            .show(ui, |ui| {
+                                ui.set_width(360.0);
+                                ui.vertical_centered(|ui| {
+                                    let (icon_rect, _) = ui.allocate_exact_size(
+                                        Vec2::splat(46.0),
+                                        Sense::hover(),
+                                    );
+                                    icons::draw(
+                                        ui.painter(),
+                                        icon_rect,
+                                        Icon::AddUrl,
+                                        theme::ACCENT,
+                                    );
+                                    ui.add_space(8.0);
+                                    ui.label(
+                                        RichText::new("No downloads yet").size(16.0).strong(),
+                                    );
+                                    ui.label(
+                                        RichText::new(
+                                            "Add a URL or drop a link to start downloading.",
+                                        )
+                                        .color(theme::muted(dark)),
+                                    );
+                                    ui.add_space(10.0);
+                                    if ui
+                                        .add(
+                                            egui::Button::new(
+                                                RichText::new("Add URL").strong(),
+                                            )
+                                            .min_size(egui::vec2(120.0, 28.0)),
+                                        )
+                                        .clicked()
+                                    {
+                                        self.open_add();
+                                    }
+                                });
+                            });
+                    });
+                    return;
+                }
                 let ids = self.visible_ids();
+                if ids.is_empty() {
+                    ui.label(
+                        RichText::new("No downloads match the current filter.")
+                            .color(theme::muted(dark)),
+                    );
+                    ui.add_space(4.0);
+                }
                 let ctrl_pressed = ui.input(|i| i.modifiers.ctrl);
                 let shift_pressed = ui.input(|i| i.modifiers.shift);
                 let mut actions: Vec<RowAction> = Vec::new();
@@ -903,11 +982,11 @@ impl IdmApp {
                 let sort_now = self.sort;
                 let sort_desc_now = self.sort_desc;
                 table
-                    .header(22.0, |mut header| {
+                    .header(26.0, |mut header| {
                         let mut h = |header: &mut egui_extras::TableRow, label: &str, col: SortCol| {
                             header.col(|ui| {
                                 let arrow = if sort_now == col {
-                                    if sort_desc_now { " v" } else { " ^" }
+                                    if sort_desc_now { " ▼" } else { " ▲" }
                                 } else {
                                     ""
                                 };
@@ -959,7 +1038,7 @@ impl IdmApp {
                         }
                     })
                     .body(|body| {
-                        body.rows(22.0, ids.len(), |mut row| {
+                        body.rows(24.0, ids.len(), |mut row| {
                             let i = row.index();
                             let id = ids[i];
                             let dl = self.downloads.iter().find(|d| d.id == id).cloned();
@@ -1090,15 +1169,7 @@ impl IdmApp {
                 for a in actions {
                     self.apply_row_action(a, ctx);
                 }
-                if self.downloads.is_empty() {
-                    ui.add_space(20.0);
-                    ui.vertical_centered(|ui| {
-                        ui.label(
-                            RichText::new("No downloads. Click \"Add URL\" or drop a link here.")
-                                .color(Color32::from_gray(120)),
-                        );
-                    });
-                }
+
             });
     }
 
@@ -1379,33 +1450,51 @@ fn tree_row(
     dark: bool,
 ) -> egui::Response {
     let width = ui.available_width();
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, 22.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, 24.0), Sense::click());
+    let hover_t = ui.ctx().animate_bool_with_time(
+        egui::Id::new(("tree-row", label)),
+        resp.hovered() && !selected,
+        0.10,
+    );
     if selected {
-        ui.painter().rect_filled(rect, egui::Rounding::same(2), theme::ODM_BLUE);
-    } else if resp.hovered() {
+        ui.painter()
+            .rect_filled(rect, egui::Rounding::same(4), theme::ACCENT);
+    } else if hover_t > 0.0 {
+        let hover_bg = if dark {
+            Color32::from_rgb(58, 60, 65)
+        } else {
+            Color32::from_rgb(232, 241, 250)
+        };
         ui.painter().rect_filled(
             rect,
-            egui::Rounding::same(2),
-            if dark { Color32::from_rgb(60, 60, 60) } else { Color32::from_rgb(229, 241, 251) },
+            egui::Rounding::same(4),
+            theme::mix(Color32::TRANSPARENT, hover_bg, hover_t),
         );
     }
     let fg = if selected {
         Color32::WHITE
-    } else if dark {
-        Color32::from_gray(225)
     } else {
-        Color32::from_gray(30)
+        theme::text(dark)
     };
     let icon_rect = Rect::from_center_size(
-        Pos2::new(rect.left() + 12.0 + indent * 12.0, rect.center().y),
+        Pos2::new(rect.left() + 13.0 + indent * 12.0, rect.center().y),
         Vec2::splat(15.0),
     );
-    icons::draw(ui.painter(), icon_rect, icon, if selected { fg } else { Color32::from_rgb(190, 150, 60) });
+    icons::draw(
+        ui.painter(),
+        icon_rect,
+        icon,
+        if selected {
+            fg
+        } else {
+            theme::ODM_AMBER
+        },
+    );
     ui.painter().text(
-        Pos2::new(rect.left() + 24.0 + indent * 12.0, rect.center().y),
+        Pos2::new(rect.left() + 26.0 + indent * 12.0, rect.center().y),
         Align2::LEFT_CENTER,
         label,
-        FontId::proportional(12.0),
+        FontId::proportional(12.5),
         fg,
     );
     if count > 0 {
@@ -1414,7 +1503,11 @@ fn tree_row(
             Align2::RIGHT_CENTER,
             count.to_string(),
             FontId::proportional(11.0),
-            if selected { fg } else { Color32::from_gray(130) },
+            if selected {
+                fg
+            } else {
+                theme::muted(dark)
+            },
         );
     }
     resp

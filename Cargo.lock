@@ -2667,7 +2667,7 @@ dependencies = [
 
 [[package]]
 name = "odm-app"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2690,7 +2690,7 @@ dependencies = [
 
 [[package]]
 name = "odm-core"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2710,7 +2710,7 @@ dependencies = [
 
 [[package]]
 name = "odm-host"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "anyhow",
  "serde",

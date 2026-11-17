@@ -4,7 +4,7 @@
 use crate::ui::app::{Filter, IdmApp};
 use crate::ui::theme;
 use crate::ui::widgets;
-use eframe::egui::{self, Align, Color32, Layout, RichText, Sense};
+use eframe::egui::{self, Align, Color32, Layout, RichText, Sense, Stroke};
 use odm_core::config::{Category, CompletionAction, Config, ProxyMode, SiteLogin};
 use odm_core::model::Download;
 use odm_core::util;
@@ -293,18 +293,30 @@ impl IdmApp {
                 ui.add_space(6.0);
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button("OK").clicked() {
-                        submit = true;
-                    }
-                    if ui.button("Cancel").clicked() {
-                        open = false;
+                    if ui.button("Batch download...").clicked() {
+                        self.dialogs.batch = Some(BatchState {
+                            url: st.url.clone(),
+                            ..Default::default()
+                        });
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.button("Batch download...").clicked() {
-                            self.dialogs.batch = Some(BatchState {
-                                url: st.url.clone(),
-                                ..Default::default()
-                            });
+                        if ui
+                            .add(
+                                egui::Button::new("Cancel")
+                                    .min_size(egui::vec2(86.0, 26.0)),
+                            )
+                            .clicked()
+                        {
+                            open = false;
+                        }
+                        if ui
+                            .add(
+                                egui::Button::new(RichText::new("OK").strong())
+                                    .min_size(egui::vec2(86.0, 26.0)),
+                            )
+                            .clicked()
+                        {
+                            submit = true;
                         }
                     });
                 });
@@ -379,7 +391,14 @@ impl IdmApp {
                         });
                     });
                     ui.add_space(4.0);
-                    widgets::progress_bar(ui, d.percent() / 100.0, 20.0, true);
+                    widgets::progress_bar_animated(
+                        ui,
+                        ("progress", id),
+                        d.percent() / 100.0,
+                        20.0,
+                        true,
+                        ui.visuals().dark_mode,
+                    );
                     ui.add_space(4.0);
                     egui::Grid::new(("prog_grid", id))
                         .num_columns(4)
@@ -427,20 +446,13 @@ impl IdmApp {
                                         )),
                                     );
                                     let w = (ui.available_width() - 90.0).max(60.0);
-                                    let (rect, _) =
-                                        ui.allocate_exact_size(egui::vec2(w, 14.0), Sense::hover());
                                     let pct = p.percent() / 100.0;
-                                    ui.painter().rect_filled(
-                                        rect,
-                                        egui::Rounding::same(2),
-                                        Color32::from_gray(225),
-                                    );
-                                    let mut fill = rect;
-                                    fill.set_width(rect.width() * pct);
-                                    ui.painter().rect_filled(
-                                        fill,
-                                        egui::Rounding::same(2),
-                                        theme::ODM_BLUE,
+                                    widgets::mini_progress_bar(
+                                        ui,
+                                        ("part", id, i),
+                                        pct,
+                                        w,
+                                        ui.visuals().dark_mode,
                                     );
                                     ui.label(format!("{:.0}%", pct * 100.0));
                                 });
@@ -935,17 +947,54 @@ impl IdmApp {
             .id(egui::Id::new("complete"))
             .collapsible(false)
             .resizable(false)
-            .default_width(430.0)
+            .default_width(450.0)
             .open(&mut open)
             .show(ctx, |ui| {
-                ui.label(format!(
-                    "File {} download complete.\n\nDownloaded {} ({} Bytes)\nFile saved as {}",
-                    st.file_name,
-                    util::format_bytes(st.size),
-                    st.size,
-                    st.path.display()
-                ));
+                ui.vertical_centered(|ui| {
+                    let (icon_rect, _) =
+                        ui.allocate_exact_size(egui::vec2(44.0, 44.0), Sense::hover());
+                    let c = icon_rect.center();
+                    ui.painter()
+                        .circle_filled(c, 20.0, theme::ODM_GREEN.gamma_multiply(0.16));
+                    ui.painter().circle_stroke(
+                        c,
+                        20.0,
+                        Stroke::new(1.5, theme::ODM_GREEN),
+                    );
+                    ui.painter().line_segment(
+                        [c + egui::vec2(-8.0, 0.0), c + egui::vec2(-2.0, 7.0)],
+                        Stroke::new(2.6, theme::ODM_GREEN),
+                    );
+                    ui.painter().line_segment(
+                        [c + egui::vec2(-2.0, 7.0), c + egui::vec2(9.0, -7.0)],
+                        Stroke::new(2.6, theme::ODM_GREEN),
+                    );
+                    ui.add_space(6.0);
+                    ui.label(RichText::new("Download complete").size(16.0).strong());
+                    ui.label(RichText::new(&st.file_name).strong());
+                });
                 ui.add_space(6.0);
+                egui::Grid::new("complete_grid")
+                    .num_columns(2)
+                    .spacing([12.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new("Size").color(theme::muted(ui.visuals().dark_mode)),
+                        );
+                        ui.label(format!(
+                            "{}  ({} bytes)",
+                            util::format_bytes(st.size),
+                            st.size
+                        ));
+                        ui.end_row();
+                        ui.label(
+                            RichText::new("Saved to").color(theme::muted(ui.visuals().dark_mode)),
+                        );
+                        ui.add(egui::Label::new(st.path.display().to_string()).wrap());
+                        ui.end_row();
+                    });
+                ui.add_space(8.0);
+                ui.separator();
                 ui.horizontal(|ui| {
                     if ui.button("Open").clicked() {
                         let _ = open::that(&st.path);
@@ -955,9 +1004,14 @@ impl IdmApp {
                             let _ = open::that(dir);
                         }
                     }
-                    if ui.button("Close").clicked() {
-                        close_clicked = true;
-                    }
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui
+                            .add(egui::Button::new("Close").min_size(egui::vec2(86.0, 26.0)))
+                            .clicked()
+                        {
+                            close_clicked = true;
+                        }
+                    });
                 });
             });
         if close_clicked {
