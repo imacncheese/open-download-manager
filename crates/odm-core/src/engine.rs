@@ -49,6 +49,7 @@ pub enum EngineEvent {
     QueueStarted(u64),
     QueueStopped(u64),
     ShowWindow,
+    Started(DownloadId),
 }
 
 struct PartAtom {
@@ -497,6 +498,7 @@ fn start_one(shared: &Arc<Shared>, id: u64) {
         d.error = None;
         d.last_try = Some(util::now());
     });
+    shared.emit(EngineEvent::Started(id));
     shared.emit(EngineEvent::Changed);
     let sh = shared.clone();
     tokio::spawn(async move {
@@ -923,11 +925,11 @@ async fn run_download(shared: Arc<Shared>, id: u64) -> Result<bool> {
     }
     reporter.abort();
     final_sync(&shared, id, &ctl);
-    if ctl.cancel.load(Ordering::SeqCst) {
-        return Ok(false);
-    }
     if let Some(e) = first_err {
         return Err(e);
+    }
+    if ctl.cancel.load(Ordering::SeqCst) {
+        return Ok(false);
     }
     if !ctl.all_done() {
         return Err(anyhow!("Download failed. Downloaded: {} Bytes Total", ctl.total_downloaded()));

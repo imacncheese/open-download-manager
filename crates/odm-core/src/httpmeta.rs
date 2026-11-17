@@ -182,9 +182,7 @@ pub async fn probe(client: &Client, cfg: &Config, dl: &Download) -> Result<Probe
                 .unwrap_or(false);
             probe.file_name = header_str(resp, CONTENT_DISPOSITION)
                 .and_then(|v| util::filename_from_disposition(&v));
-            if probe.size.is_some() && probe.resumable {
-                return Ok(probe);
-            }
+            // HEAD's Accept-Ranges can lie; validate with a ranged GET below.
         }
     }
 

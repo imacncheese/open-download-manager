@@ -105,6 +105,7 @@ pub struct IdmApp {
     pub hwnd: Option<isize>,
     pub hwnd_shared: std::sync::Arc<std::sync::atomic::AtomicIsize>,
     pub watcher_started: bool,
+    pub progress_auto: std::collections::HashSet<u64>,
 }
 
 impl IdmApp {
@@ -148,6 +149,7 @@ impl IdmApp {
             hwnd: None,
             hwnd_shared: std::sync::Arc::new(std::sync::atomic::AtomicIsize::new(0)),
             watcher_started: false,
+            progress_auto: std::collections::HashSet::new(),
         }
     }
 
@@ -159,7 +161,16 @@ impl IdmApp {
                 EngineEvent::ShowWindow => {
                     self.restore(ctx);
                 }
+                EngineEvent::Started(id) => {
+                    if self.cfg.show_progress_dialog {
+                        self.progress_auto.insert(id);
+                        self.open_progress(id);
+                    }
+                }
                 EngineEvent::Completed(id) => {
+                    if self.cfg.show_complete_dialog {
+                        self.dialogs.progress_windows.retain(|x| *x != id);
+                    }
                     if let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() {
                         self.status = format!("{} download complete.", d.file_name);
                     }
@@ -190,6 +201,29 @@ impl IdmApp {
             self.last_refresh = Instant::now();
             self.downloads = self.engine.snapshot();
             self.cfg = self.engine.config();
+            if self.cfg.show_progress_dialog {
+                let mut active = std::collections::HashSet::new();
+                let mut to_open = Vec::new();
+                for d in &self.downloads {
+                    if d.status.is_active() {
+                        active.insert(d.id);
+                        if !self.progress_auto.contains(&d.id) {
+                            to_open.push(d.id);
+                        }
+                    }
+                }
+                self.progress_auto.retain(|id| active.contains(id));
+                for id in to_open {
+                    self.progress_auto.insert(id);
+                    self.open_progress(id);
+                }
+            }
+        }
+    }
+
+    pub fn open_progress(&mut self, id: u64) {
+        if !self.dialogs.progress_windows.contains(&id) {
+            self.dialogs.progress_windows.push(id);
         }
     }
 
@@ -372,7 +406,7 @@ impl IdmApp {
             if d.status == Status::Complete {
                 let _ = open::that(d.dest_path());
             } else {
-                self.dialogs.progress = Some(d.id);
+                self.open_progress(d.id);
             }
         }
     }
@@ -1102,7 +1136,7 @@ impl IdmApp {
                     if d.status == Status::Complete {
                         let _ = open::that(d.dest_path());
                     } else {
-                        self.dialogs.progress = Some(id);
+                        self.open_progress(id);
                     }
                 }
             }

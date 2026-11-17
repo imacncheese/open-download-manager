@@ -11,10 +11,17 @@ use odm_core::util;
 use odm_core::{AddRequest, Status};
 use std::path::PathBuf;
 
+#[derive(Clone, Copy)]
+enum ProgAction {
+    Pause,
+    Stop,
+    Start,
+}
+
 #[derive(Default)]
 pub struct Dialogs {
     pub add_url: Option<AddUrlState>,
-    pub progress: Option<u64>,
+    pub progress_windows: Vec<u64>,
     pub options: Option<OptionsState>,
     pub scheduler: bool,
     pub about: bool,
@@ -332,139 +339,168 @@ impl IdmApp {
     }
 
     fn dialog_progress(&mut self, ctx: &egui::Context) {
-        let Some(id) = self.dialogs.progress else { return };
-        let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() else {
-            self.dialogs.progress = None;
+        if self.dialogs.progress_windows.is_empty() {
             return;
-        };
-        let mut open = true;
-        let mut start = false;
-        let mut stop = false;
-        let mut pause = false;
-        egui::Window::new("Download progress")
-            .id(egui::Id::new("progress"))
-            .collapsible(false)
-            .resizable(true)
-            .default_width(560.0)
-            .open(&mut open)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new(&d.file_name).strong());
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        }
+        let ids = self.dialogs.progress_windows.clone();
+        let mut actions: Vec<(u64, ProgAction)> = Vec::new();
+        let mut close: Vec<u64> = Vec::new();
+
+        for (win_idx, id) in ids.iter().copied().enumerate() {
+            let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() else {
+                close.push(id);
+                continue;
+            };
+            let mut open = true;
+            let mut action: Option<ProgAction> = None;
+            egui::Window::new(format!("Download progress - {}", d.file_name))
+                .id(egui::Id::new(("progress", id)))
+                .collapsible(false)
+                .resizable(true)
+                .default_width(560.0)
+                .default_pos(egui::pos2(
+                    70.0 + (win_idx % 8) as f32 * 28.0,
+                    60.0 + (win_idx % 8) as f32 * 28.0,
+                ))
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(&d.file_name).strong());
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.label(
+                                RichText::new(d.status.label())
+                                    .color(if d.status == Status::Error {
+                                        theme::ODM_RED
+                                    } else {
+                                        Color32::from_gray(90)
+                                    }),
+                            );
+                        });
+                    });
+                    ui.add_space(4.0);
+                    widgets::progress_bar(ui, d.percent() / 100.0, 20.0, true);
+                    ui.add_space(4.0);
+                    egui::Grid::new(("prog_grid", id))
+                        .num_columns(4)
+                        .spacing([16.0, 4.0])
+                        .show(ui, |ui| {
+                            ui.label("File size:");
+                            ui.label(d.size.map(util::format_bytes).unwrap_or_else(|| "(unknown)".into()));
+                            ui.label("Downloaded:");
+                            ui.label(util::format_bytes(d.downloaded));
+                            ui.end_row();
+                            ui.label("Transfer rate:");
+                            ui.label(if d.speed > 0 { util::format_speed(d.speed) } else { String::new() });
+                            ui.label("Time left:");
+                            ui.label(d.time_left().map(util::format_time_left).unwrap_or_default());
+                            ui.end_row();
+                            ui.label("Resume capability:");
+                            ui.label(if d.resumable { "Yes" } else { "No" });
+                            ui.label("Connections:");
+                            ui.label(format!("{}", d.parts.len()));
+                            ui.end_row();
+                        });
+                    if let Some(err) = &d.error {
+                        ui.colored_label(theme::ODM_RED, err);
+                    }
+                    ui.add_space(4.0);
+                    ui.group(|ui| {
                         ui.label(
-                            RichText::new(d.status.label())
-                                .color(if d.status == Status::Error {
-                                    theme::ODM_RED
-                                } else {
-                                    Color32::from_gray(90)
-                                }),
+                            RichText::new("Start positions and download progress by connections")
+                                .strong()
+                                .size(11.0),
                         );
+                        egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                            if d.parts.is_empty() {
+                                ui.label("(no connection data)");
+                            }
+                            for (i, p) in d.parts.iter().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.add_sized([24.0, 16.0], egui::Label::new(format!("{}.", i + 1)));
+                                    ui.add_sized(
+                                        [140.0, 16.0],
+                                        egui::Label::new(format!(
+                                            "{} - {}",
+                                            util::format_bytes(p.start),
+                                            util::format_bytes(p.end.saturating_add(1))
+                                        )),
+                                    );
+                                    let w = (ui.available_width() - 90.0).max(60.0);
+                                    let (rect, _) =
+                                        ui.allocate_exact_size(egui::vec2(w, 14.0), Sense::hover());
+                                    let pct = p.percent() / 100.0;
+                                    ui.painter().rect_filled(
+                                        rect,
+                                        egui::Rounding::same(2),
+                                        Color32::from_gray(225),
+                                    );
+                                    let mut fill = rect;
+                                    fill.set_width(rect.width() * pct);
+                                    ui.painter().rect_filled(
+                                        fill,
+                                        egui::Rounding::same(2),
+                                        theme::ODM_BLUE,
+                                    );
+                                    ui.label(format!("{:.0}%", pct * 100.0));
+                                });
+                            }
+                        });
+                    });
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        match d.status {
+                            Status::Downloading | Status::Connecting | Status::Assembling => {
+                                if ui.button("Pause").clicked() {
+                                    action = Some(ProgAction::Pause);
+                                }
+                                if ui.button("Stop").clicked() {
+                                    action = Some(ProgAction::Stop);
+                                }
+                            }
+                            Status::Complete => {
+                                if ui.button("Open").clicked() {
+                                    let _ = open::that(d.dest_path());
+                                }
+                                if ui.button("Open folder").clicked() {
+                                    let _ = open::that(&d.save_dir);
+                                }
+                            }
+                            _ => {
+                                if ui.button("Start").clicked() {
+                                    action = Some(ProgAction::Start);
+                                }
+                                if ui.button("Remove").clicked() {
+                                    action = Some(ProgAction::Stop);
+                                }
+                            }
+                        }
+                        if ui.button("Close").clicked() {
+                            // handled via `open`
+                        }
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.label(format!("{}%", d.percent()));
+                        });
                     });
                 });
-                ui.add_space(4.0);
-                let frac = d.percent() / 100.0;
-                widgets::progress_bar(ui, frac, 20.0, true);
-                ui.add_space(4.0);
-                egui::Grid::new("prog_grid")
-                    .num_columns(4)
-                    .spacing([16.0, 4.0])
-                    .show(ui, |ui| {
-                        ui.label("File size:");
-                        ui.label(d.size.map(util::format_bytes).unwrap_or_else(|| "(unknown)".into()));
-                        ui.label("Downloaded:");
-                        ui.label(util::format_bytes(d.downloaded));
-                        ui.end_row();
-                        ui.label("Transfer rate:");
-                        ui.label(if d.speed > 0 { util::format_speed(d.speed) } else { String::new() });
-                        ui.label("Time left:");
-                        ui.label(d.time_left().map(util::format_time_left).unwrap_or_default());
-                        ui.end_row();
-                        ui.label("Resume capability:");
-                        ui.label(if d.resumable { "Yes" } else { "No" });
-                        ui.label("Connections:");
-                        ui.label(format!("{}", d.parts.len()));
-                        ui.end_row();
-                    });
-                if let Some(err) = &d.error {
-                    ui.colored_label(theme::ODM_RED, err);
-                }
-                ui.add_space(4.0);
-                ui.group(|ui| {
-                    ui.label(RichText::new("Start positions and download progress by connections").strong().size(11.0));
-                    egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
-                        if d.parts.is_empty() {
-                            ui.label("(no connection data)");
-                        }
-                        for (i, p) in d.parts.iter().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.add_sized([24.0, 16.0], egui::Label::new(format!("{}.", i + 1)));
-                                ui.add_sized(
-                                    [140.0, 16.0],
-                                    egui::Label::new(format!(
-                                        "{} - {}",
-                                        util::format_bytes(p.start),
-                                        util::format_bytes(p.end.saturating_add(1))
-                                    )),
-                                );
-                                let w = (ui.available_width() - 90.0).max(60.0);
-                                let (rect, _) = ui.allocate_exact_size(egui::vec2(w, 14.0), Sense::hover());
-                                let pct = p.percent() / 100.0;
-                                ui.painter().rect_filled(rect, egui::Rounding::same(2), Color32::from_gray(225));
-                                let mut fill = rect;
-                                fill.set_width(rect.width() * pct);
-                                ui.painter().rect_filled(fill, egui::Rounding::same(2), theme::ODM_BLUE);
-                                ui.label(format!("{:.0}%", pct * 100.0));
-                            });
-                        }
-                    });
-                });
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    match d.status {
-                        Status::Downloading | Status::Connecting | Status::Assembling => {
-                            if ui.button("Pause").clicked() {
-                                pause = true;
-                            }
-                            if ui.button("Stop").clicked() {
-                                stop = true;
-                            }
-                        }
-                        Status::Complete => {
-                            if ui.button("Open").clicked() {
-                                let _ = open::that(d.dest_path());
-                            }
-                            if ui.button("Open folder").clicked() {
-                                let _ = open::that(&d.save_dir);
-                            }
-                        }
-                        _ => {
-                            if ui.button("Start").clicked() {
-                                start = true;
-                            }
-                            if ui.button("Remove").clicked() {
-                                stop = true;
-                            }
-                        }
-                    }
-                    if ui.button("Close").clicked() {
-                        // handled by `open`
-                    }
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(format!("{}%", d.percent()));
-                    });
-                });
-            });
-        if pause {
-            self.engine.stop(id, true);
+            if let Some(a) = action {
+                actions.push((id, a));
+            }
+            if !open {
+                close.push(id);
+            }
         }
-        if stop {
-            self.engine.stop(id, false);
+
+        for (id, action) in actions {
+            match action {
+                ProgAction::Pause => self.engine.stop(id, true),
+                ProgAction::Stop => self.engine.stop(id, false),
+                ProgAction::Start => self.engine.start(id),
+            }
         }
-        if start {
-            self.engine.start(id);
-        }
-        if !open {
-            self.dialogs.progress = None;
+        if !close.is_empty() {
+            self.dialogs
+                .progress_windows
+                .retain(|id| !close.contains(id));
         }
     }
 

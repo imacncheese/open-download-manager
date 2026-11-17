@@ -8,11 +8,17 @@ activation or trial timer**.
 
 ![Open Download Manager main window](docs/screenshots/odm-main.png)
 
+Live progress windows open automatically for every started download (including
+multiple simultaneous downloads):
+
+![Download progress windows](docs/screenshots/odm-progress.png)
+
 ## What it does
 
 | Area | Status |
 |---|---|
 | Segmented HTTP/HTTPS downloads (1–32 connections, default 8) | ✅ |
+| Dedicated live progress window per active download (per-connection bars) | ✅ |
 | Resume after stop/crash (per-connection part files) | ✅ tested |
 | Byte-exact assembly + `Last-Modified` preservation | ✅ tested |
 | Categories, per-category folders/file masks/sites | ✅ |
@@ -49,13 +55,13 @@ cd open-download-manager
 
 ### MSI installer (no admin required)
 
-Download the latest `OpenDownloadManager-1.0.2.msi` from
+Download the latest `OpenDownloadManager-1.0.3.msi` from
 [Releases](https://github.com/imacncheese/open-download-manager/releases/latest),
 or build it locally:
 
 ```powershell
-.\installer\build-msi.ps1 -Version 1.0.2
-.\dist\OpenDownloadManager-1.0.2.msi
+.\installer\build-msi.ps1 -Version 1.0.3
+.\dist\OpenDownloadManager-1.0.3.msi
 ```
 
 The MSI installs the app, Start-menu shortcut, browser integration and a clean
