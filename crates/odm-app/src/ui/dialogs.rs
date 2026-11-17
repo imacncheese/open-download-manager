@@ -361,7 +361,11 @@ impl IdmApp {
 
         for (win_idx, id) in ids.iter().copied().enumerate() {
             let Some(d) = self.downloads.iter().find(|d| d.id == id).cloned() else {
-                close.push(id);
+                // The engine can emit Started before the UI snapshot includes
+                // the new download. Keep the window during that brief gap.
+                if !self.progress_auto.contains(&id) {
+                    close.push(id);
+                }
                 continue;
             };
             let mut open = true;

@@ -163,6 +163,9 @@ impl IdmApp {
                 }
                 EngineEvent::Started(id) => {
                     if self.cfg.show_progress_dialog {
+                        // Refresh before opening: the progress dialog drops ids
+                        // that are missing from the current snapshot.
+                        self.downloads = self.engine.snapshot();
                         self.progress_auto.insert(id);
                         self.open_progress(id);
                     }
@@ -222,6 +225,8 @@ impl IdmApp {
     }
 
     pub fn open_progress(&mut self, id: u64) {
+        // Make sure the dialog has a snapshot that contains this download.
+        self.downloads = self.engine.snapshot();
         if !self.dialogs.progress_windows.contains(&id) {
             self.dialogs.progress_windows.push(id);
         }
